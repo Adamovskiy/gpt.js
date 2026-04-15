@@ -25,4 +25,8 @@ export class CharTokenizer {
       })
       .join('');
   }
+
+  getVocabSize() {
+    return this.vocabulary.length;
+  }
 }
