@@ -19,7 +19,7 @@ const model = new BigramLanguageModel(tokenizer.getVocabSize());
 let loss;
 for (let i = 0; i < 50000; i++) {
   const { contexts, outputs } = getBatch(trainData);
-  loss = model.trainSGD(contexts, outputs);
+  loss = model.trainAdamW(contexts, outputs);
   console.log(`Loss: ${loss} (perfect - 0, random - ${-Math.log(1 / tokenizer.getVocabSize())})`);
 }
 

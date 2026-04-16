@@ -25,6 +25,70 @@ export class BigramLanguageModel {
 
   constructor(vocabSize: number) {
     this.embedding = Array.from(Array(vocabSize), () => new Array(vocabSize).fill(0).map(() => random() * 0.01));
+    this.m = this.embedding.map((row) => new Array(row.length).fill(0));
+    this.v = this.embedding.map((row) => new Array(row.length).fill(0));
+  }
+
+  private m: Tensor2d;
+  private v: Tensor2d;
+  private t = 0;
+
+  trainAdamW(contextTokens: Tensor2d, outputs: Tensor2d) {
+    const learningRate = 1e-3;
+    const beta1 = 0.9;
+    const beta2 = 0.999;
+    const eps = 1e-8;
+    const weightDecay = 0.01;
+
+    this.t++;
+
+    const { logits, loss } = this.forward(contextTokens, outputs);
+
+    const countTokens = contextTokens.reduce((sum, batch) => sum + batch.length, 0);
+    const scale = 1 / countTokens;
+
+    // Collect gradients per token before applying to the embedding
+    const gradEmbedding = this.embedding.map((tEmbedding) => new Array<number>(tEmbedding.length).fill(0));
+
+    for (let batchIdx = 0; batchIdx < logits.length; batchIdx++) {
+      const batchContextTokens = contextTokens[batchIdx];
+      for (let tokenIdx = 0; tokenIdx < batchContextTokens.length; tokenIdx++) {
+        const token = batchContextTokens[tokenIdx];
+        const itsLogits = logits[batchIdx][tokenIdx];
+        const probabilities = softmax(itsLogits);
+        const targetToken = outputs[batchIdx][tokenIdx];
+
+        const gradients = probabilities;
+        gradients[targetToken] -= 1;
+
+        const tokenGradEmbedding = gradEmbedding[token];
+        for (let gradientIdx = 0; gradientIdx < tokenGradEmbedding.length; gradientIdx++) {
+          tokenGradEmbedding[gradientIdx] += gradients[gradientIdx] * scale;
+        }
+      }
+    }
+
+    for (let token = 0; token < this.embedding.length; token++) {
+      for (let i = 0; i < this.embedding[token].length; i++) {
+        const g = gradEmbedding[token][i];
+
+        // update moments
+        this.m[token][i] = beta1 * this.m[token][i] + (1 - beta1) * g;
+        this.v[token][i] = beta2 * this.v[token][i] + (1 - beta2) * g * g;
+
+        // bias correction
+        const mHat = this.m[token][i] / (1 - Math.pow(beta1, this.t));
+        const vHat = this.v[token][i] / (1 - Math.pow(beta2, this.t));
+
+        // update weights
+        this.embedding[token][i] -= (learningRate * mHat) / (Math.sqrt(vHat) + eps);
+
+        // weight decay (AdamW style)
+        this.embedding[token][i] -= learningRate * weightDecay * this.embedding[token][i];
+      }
+    }
+
+    return loss;
   }
 
   trainSGD(contextTokens: Tensor2d, outputs: Tensor2d) {
