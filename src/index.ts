@@ -19,3 +19,6 @@ const model = new BigramLanguageModel(tokenizer.getVocabSize());
 const { logits, loss } = model.forward(contexts, outputs);
 
 console.log(`Loss: ${loss} (perfect - 0, random - ${-Math.log(1 / tokenizer.getVocabSize())})`);
+
+const output = model.generate([[42]], 100);
+console.log(tokenizer.decode(output[0]));

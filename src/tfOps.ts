@@ -1,14 +1,15 @@
 import type { Tensor1d, Tensor2d, Tensor3d } from './tensorOps.js';
+import { random } from './random.js';
 
 export function crossEntropy(logits: Tensor3d, targets: Tensor2d) {
   let sum = 0;
   let count = 0;
 
-  for (let sampleIdx = 0; sampleIdx < logits.length; sampleIdx++) {
-    for (let tokenIdx = 0; tokenIdx < logits[sampleIdx].length; tokenIdx++) {
+  for (let batchIdx = 0; batchIdx < logits.length; batchIdx++) {
+    for (let tokenIdx = 0; tokenIdx < logits[batchIdx].length; tokenIdx++) {
       // Calculate loss for each token
-      const tokenLogits = logits[sampleIdx][tokenIdx];
-      const targetIndex = targets[sampleIdx][tokenIdx];
+      const tokenLogits = logits[batchIdx][tokenIdx];
+      const targetIndex = targets[batchIdx][tokenIdx];
       // TODO do not calculate all probabilities, just one
       const probabilities = softmax(tokenLogits);
       sum += -Math.log(probabilities[targetIndex] + 1e-9); // Make sure it's never log(0)
@@ -25,9 +26,9 @@ export class BigramLanguageModel {
   constructor(vocabSize: number) {
     this.embedding = Array.from(Array(vocabSize), () => new Array(vocabSize).fill(0));
 
-    // TODO remove
+    // TODO replace with training
     for (let i = 0; i < vocabSize; i++) {
-      this.embedding[i][i] = 1;
+      this.embedding[i][i] = 8;
     }
   }
 
@@ -42,6 +43,44 @@ export class BigramLanguageModel {
 
     return { logits, loss };
   }
+
+  generate(
+    idx: Tensor2d, // (B, T, C)
+    maxNewTokens: number,
+  ) {
+    for (let i = 0; i < maxNewTokens; i++) {
+      const { logits } = this.forward(idx);
+
+      const lastTokenLogits = logits.map((batch) => batch[batch.length - 1]); // (B, C)
+      const probs = softmaxBatched(lastTokenLogits); // (B, C)
+      const idxNext = sampleMultinomial(probs);
+      concatBatched(idx, idxNext);
+    }
+
+    return idx;
+  }
+}
+
+function sampleMultinomial(
+  batches: Tensor2d, // (B, C)
+) {
+  return batches.map((probabilities) => {
+    let sum = 0;
+    const rnd = random();
+    for (let idx = 0; idx < probabilities.length; idx++) {
+      sum += probabilities[idx];
+      if (sum > rnd) {
+        return idx;
+      }
+    }
+    return probabilities.length - 1; // Fallback
+  });
+}
+
+function concatBatched(idx: Tensor2d, idxNext: Tensor1d) {
+  for (let i = 0; i < idxNext.length; i++) {
+    idx[i].push(idxNext[i]);
+  }
 }
 
 export function softmax(logits: Tensor1d) {
@@ -49,4 +88,8 @@ export function softmax(logits: Tensor1d) {
   const exp = logits.map((logit) => Math.exp(logit - maxLogit));
   const sum = exp.reduce((a, b) => a + b, 0);
   return exp.map((exp) => exp / sum);
+}
+
+export function softmaxBatched(batches: Tensor2d) {
+  return batches.map((batch) => softmax(batch));
 }
