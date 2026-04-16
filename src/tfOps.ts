@@ -24,18 +24,53 @@ export class BigramLanguageModel {
   private readonly embedding: Tensor2d; // vocabSize x vocabSize
 
   constructor(vocabSize: number) {
-    this.embedding = Array.from(Array(vocabSize), () => new Array(vocabSize).fill(0));
+    this.embedding = Array.from(Array(vocabSize), () => new Array(vocabSize).fill(0).map(() => random() * 0.01));
+  }
 
-    // TODO replace with training
-    for (let i = 0; i < vocabSize; i++) {
-      this.embedding[i][i] = 8;
+  trainSGD(contextTokens: Tensor2d, outputs: Tensor2d) {
+    const learningRate = 1e-3;
+    const { logits, loss } = this.forward(contextTokens, outputs);
+
+    const countTokens = contextTokens.reduce((sum, batch) => sum + batch.length, 0);
+    const scale = 1 / countTokens;
+
+    // Collect gradients per token before applying to the embedding
+    const gradEmbedding = this.embedding.map((tEmbedding) => new Array<number>(tEmbedding.length).fill(0));
+
+    for (let batchIdx = 0; batchIdx < logits.length; batchIdx++) {
+      const batchContextTokens = contextTokens[batchIdx];
+      for (let tokenIdx = 0; tokenIdx < batchContextTokens.length; tokenIdx++) {
+        const token = batchContextTokens[tokenIdx];
+        const itsLogits = logits[batchIdx][tokenIdx];
+        const probabilities = softmax(itsLogits);
+        const targetToken = outputs[batchIdx][tokenIdx];
+
+        const gradients = probabilities;
+        gradients[targetToken] -= 1;
+
+        const tokenGradEmbedding = gradEmbedding[token];
+        for (let gradientIdx = 0; gradientIdx < tokenGradEmbedding.length; gradientIdx++) {
+          tokenGradEmbedding[gradientIdx] += gradients[gradientIdx] * scale;
+        }
+      }
     }
+
+    for (let token = 0; token < this.embedding.length; token++) {
+      for (let i = 0; i < this.embedding[token].length; i++) {
+        this.embedding[token][i] -= learningRate * gradEmbedding[token][i];
+      }
+    }
+
+    return loss;
   }
 
   forward(
-    idx: Tensor2d, // (B, T, C)
+    idx: Tensor2d, // (B, T)
     targets?: Tensor2d, // (B, T)
-  ) {
+  ): {
+    logits: Tensor3d; // (B, T, C)
+    loss?: number;
+  } {
     const logits = idx.map((batch) => batch.map((token) => this.embedding[token]));
 
     if (!targets) return { logits };
