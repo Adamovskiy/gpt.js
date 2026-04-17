@@ -3,13 +3,6 @@ import { CharTokenizer } from './tokenizer.js';
 import { seed } from './random.js';
 import { BigramLanguageModel } from './tfOps.js';
 import { getBatch } from './sampling.js';
-import {
-  lowerTriangularMatrixAvgWeighted,
-  lowerTriangularMatrixAvgWeightedSoftmax,
-  getBagOfWordsOptimized,
-  getBagOfWordsUnoptimized,
-  matrixMultiply,
-} from './tensorOps.js';
 import { AdamWOptimizer, type Optimizer, SDGOptimizer } from './optimizers.js';
 
 seed(42);
@@ -37,38 +30,3 @@ for (let i = 0; i < 100000; i++) {
 
 const output = model.generate([[42]], 100);
 console.log(tokenizer.decode(output[0]));
-
-process.exit();
-
-const tri = lowerTriangularMatrixAvgWeighted(3);
-console.log(tri);
-
-console.log(lowerTriangularMatrixAvgWeightedSoftmax(3));
-
-console.log(
-  matrixMultiply(tri, [
-    [2, 7],
-    [6, 4],
-    [6, 5],
-  ]),
-);
-
-console.log(
-  getBagOfWordsUnoptimized([
-    [
-      [2, 7],
-      [6, 4],
-      [6, 5],
-    ],
-  ]),
-);
-
-console.log(
-  getBagOfWordsOptimized([
-    [
-      [2, 7],
-      [6, 4],
-      [6, 5],
-    ],
-  ]),
-);
