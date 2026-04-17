@@ -3,7 +3,7 @@ export type Tensor2d = number[][];
 export type Tensor3d = number[][][];
 
 // Warning: it mutates the target!
-function add(target: Tensor1d, addition: Tensor1d) {
+export function add(target: Tensor1d, addition: Tensor1d) {
   if (target.length !== addition.length) throw new Error('Tensors should be of the same size');
 
   target.forEach((el, i) => {
@@ -11,6 +11,16 @@ function add(target: Tensor1d, addition: Tensor1d) {
   });
 
   return target;
+}
+
+export function sum2d(a: Tensor2d, b: Tensor2d) {
+  if (a[0].length !== b[0].length) throw new Error('Tensors should be of the same size');
+
+  return a.map((row, i) => row.map((el, j) => el + b[i][j]));
+}
+
+export function sum1d(a: Tensor1d, b: Tensor1d) {
+  return a.map((el, i) => el + b[i]);
 }
 
 function divide(target: Tensor1d, divider: Tensor1d) {
@@ -46,7 +56,8 @@ export function lowerTriangularMatrixAvgWeightedSoftmax(size: number): Tensor2d 
   return affinitiesMatrix.map(softmax);
 }
 
-export function matrixMultiply(a: Tensor2d, b: Tensor2d) {
+// (x,y), (y,z) -> (x,z)
+export function matrixMultiply(a: Tensor2d, b: Tensor2d): Tensor2d {
   if (a[0].length !== b.length) throw new Error('Matrices should be of the compatible sizes');
 
   return a.map((row) => {
