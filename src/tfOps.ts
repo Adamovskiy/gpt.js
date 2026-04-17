@@ -1,4 +1,4 @@
-import type { Tensor1d, Tensor2d, Tensor3d } from './tensorOps.js';
+import { softmax, type Tensor1d, type Tensor2d, type Tensor3d } from './tensorOps.js';
 import { random } from './random.js';
 
 export function crossEntropy(logits: Tensor3d, targets: Tensor2d) {
@@ -180,13 +180,6 @@ function concatBatched(idx: Tensor2d, idxNext: Tensor1d) {
   for (let i = 0; i < idxNext.length; i++) {
     idx[i].push(idxNext[i]);
   }
-}
-
-export function softmax(logits: Tensor1d) {
-  const maxLogit = Math.max(...logits);
-  const exp = logits.map((logit) => Math.exp(logit - maxLogit));
-  const sum = exp.reduce((a, b) => a + b, 0);
-  return exp.map((exp) => exp / sum);
 }
 
 export function softmaxBatched(batches: Tensor2d) {

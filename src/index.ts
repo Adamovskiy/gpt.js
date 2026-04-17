@@ -3,6 +3,13 @@ import { CharTokenizer } from './tokenizer.js';
 import { seed } from './random.js';
 import { BigramLanguageModel } from './tfOps.js';
 import { getBatch } from './sampling.js';
+import {
+  lowerTriangularMatrixAvgWeighted,
+  lowerTriangularMatrixAvgWeightedSoftmax,
+  getBagOfWordsOptimized,
+  getBagOfWordsUnoptimized,
+  matrixMultiply,
+} from './tensorOps.js';
 
 seed(42);
 
@@ -16,12 +23,46 @@ const validationData = data.slice(splitIndex);
 
 const model = new BigramLanguageModel(tokenizer.getVocabSize());
 
-let loss;
-for (let i = 0; i < 50000; i++) {
-  const { contexts, outputs } = getBatch(trainData);
-  loss = model.trainAdamW(contexts, outputs);
-  console.log(`Loss: ${loss} (perfect - 0, random - ${-Math.log(1 / tokenizer.getVocabSize())})`);
-}
+// Learning loop
+// let loss;
+// for (let i = 0; i < 50000; i++) {
+//   const { contexts, outputs } = getBatch(trainData);
+//   loss = model.trainAdamW(contexts, outputs);
+//   console.log(`Loss: ${loss} (perfect - 0, random - ${-Math.log(1 / tokenizer.getVocabSize())})`);
+// }
 
 const output = model.generate([[42]], 100);
 console.log(tokenizer.decode(output[0]));
+
+const tri = lowerTriangularMatrixAvgWeighted(3);
+console.log(tri);
+
+console.log(lowerTriangularMatrixAvgWeightedSoftmax(3));
+
+console.log(
+  matrixMultiply(tri, [
+    [2, 7],
+    [6, 4],
+    [6, 5],
+  ]),
+);
+
+console.log(
+  getBagOfWordsUnoptimized([
+    [
+      [2, 7],
+      [6, 4],
+      [6, 5],
+    ],
+  ]),
+);
+
+console.log(
+  getBagOfWordsOptimized([
+    [
+      [2, 7],
+      [6, 4],
+      [6, 5],
+    ],
+  ]),
+);
