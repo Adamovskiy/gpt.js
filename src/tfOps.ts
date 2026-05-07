@@ -1,4 +1,13 @@
-import { sum2d, softmax, type Tensor1d, type Tensor2d, type Tensor3d, matrixMultiply, sum1d } from './tensorOps.js';
+import {
+  sum2d,
+  softmax,
+  type Tensor1d,
+  type Tensor2d,
+  type Tensor3d,
+  matrixMultiply,
+  sum1d,
+  transpose,
+} from './tensorOps.js';
 import { random } from './random.js';
 
 export function crossEntropy(logits: Tensor3d, targets: Tensor2d) {
@@ -24,9 +33,11 @@ export class Linear {
   readonly weights: number[][];
   readonly bias: number[];
 
-  constructor(inputSize: number, outputSize: number) {
+  constructor(inputSize: number, outputSize: number, useBias = true) {
     this.weights = Array.from({ length: inputSize }, () => Array.from({ length: outputSize }, () => random() * 0.01));
-    this.bias = Array.from({ length: outputSize }, () => random() * 0.01);
+    this.bias = useBias
+      ? Array.from({ length: outputSize }, () => random() * 0.01)
+      : new Array<number>(outputSize).fill(0);
   }
 
   // (inputSize) -> (outputSize)
@@ -86,6 +97,45 @@ export class BigramLanguageModel {
     }
 
     return idx;
+  }
+}
+
+export class Head {
+  readonly key: Linear; // projects embedding -> headSize (no bias, as in nanoGPT)
+  readonly query: Linear;
+  readonly value: Linear;
+
+  constructor(
+    embeddingSize: number,
+    readonly headSize: number,
+  ) {
+    this.key = new Linear(embeddingSize, headSize, false);
+    this.query = new Linear(embeddingSize, headSize, false);
+    this.value = new Linear(embeddingSize, headSize, false);
+  }
+
+  // x: (B, T, embeddingSize) -> (B, T, headSize)
+  forward(x: Tensor3d): Tensor3d {
+    const embeddingSize = x[0][0].length;
+    const scale = Math.pow(embeddingSize, -0.5);
+
+    return x.map((batch) => {
+      const k = batch.map((token) => this.key.forward(token)); // (T, headSize)
+      const q = batch.map((token) => this.query.forward(token)); // (T, headSize)
+      const v = batch.map((token) => this.value.forward(token)); // (T, headSize)
+
+      // wei = q @ k^T * scale -> (T, T)
+      const wei: Tensor2d = matrixMultiply(q, transpose(k)).map((row) => row.map((w) => w * scale));
+
+      // Causal mask: future positions get -Infinity so softmax zeroes them out (future tokens cannot influence the current token)
+      const maskedWei: Tensor2d = wei.map((row, i) => row.map((w, j) => (j <= i ? w : -Infinity)));
+
+      // Token affinities matrix (lower triangular matrix)
+      const weightedWei = maskedWei.map(softmax); // (T, T)
+
+      // out = wei @ v -> (T, headSize)
+      return matrixMultiply(weightedWei, v);
+    });
   }
 }
 

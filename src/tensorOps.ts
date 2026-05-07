@@ -56,6 +56,16 @@ export function lowerTriangularMatrixAvgWeightedSoftmax(size: number): Tensor2d 
   return affinitiesMatrix.map(softmax);
 }
 
+export function dot(a: Tensor1d, b: Tensor1d): number {
+  if (a.length !== b.length) throw new Error('Vectors must have the same length');
+  return a.reduce((sum, val, i) => sum + val * b[i], 0);
+}
+
+// (rows, cols) -> (cols, rows)
+export function transpose(a: Tensor2d): Tensor2d {
+  return a[0].map((_, colIdx) => a.map((row) => row[colIdx]));
+}
+
 // (x,y), (y,z) -> (x,z)
 export function matrixMultiply(a: Tensor2d, b: Tensor2d): Tensor2d {
   if (a[0].length !== b.length) throw new Error('Matrices should be of the compatible sizes');
