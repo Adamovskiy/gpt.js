@@ -23,6 +23,11 @@ export function sum1d(a: Tensor1d, b: Tensor1d) {
   return a.map((el, i) => el + b[i]);
 }
 
+// Element-wise addition for 3D tensors
+export function sum3d(a: Tensor3d, b: Tensor3d): Tensor3d {
+  return a.map((batch, bIdx) => sum2d(batch, b[bIdx]));
+}
+
 function divide(target: Tensor1d, divider: Tensor1d) {
   if (target.length !== divider.length) throw new Error('Tensors should be of the same size');
 

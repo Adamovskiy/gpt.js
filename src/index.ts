@@ -1,7 +1,7 @@
 import { readFileSync } from 'fs';
 import { CharTokenizer } from './tokenizer.js';
 import { seed } from './random.js';
-import { BigramLanguageModelWithFF } from './tfOps.js';
+import { GPTModel } from './tfOps.js';
 import { blockSize, getBatch } from './sampling.js';
 import { UniversalAdamWOptimizer } from './optimizers.js';
 
@@ -16,7 +16,8 @@ const splitIndex = 0.9 * data.length;
 const trainData = data.slice(0, splitIndex);
 
 const numHeads = 4;
-const model = new BigramLanguageModelWithFF(tokenizer.getVocabSize(), numberEmbeddingDimensions, blockSize, numHeads);
+const numLayers = 3;
+const model = new GPTModel(tokenizer.getVocabSize(), numberEmbeddingDimensions, blockSize, numHeads, numLayers);
 
 // Learning loop
 const optimizer = new UniversalAdamWOptimizer(model, 1e-3, 0.9, 0.999, 1e-8, 0.01);
