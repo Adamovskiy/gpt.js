@@ -37,14 +37,16 @@ export class Linear {
 
 export class BigramLanguageModel {
   readonly tokenEmbeddingTable: Tensor2d; // vocabSize x numberEmbeddingDimensions
-  readonly positionEmbeddingTable: Tensor2d; // vocabSize x numberEmbeddingDimensions
+  readonly positionEmbeddingTable: Tensor2d; // blockSize x numberEmbeddingDimensions
   readonly languageModelingHead: Linear; // Transforms embeddings to logits
+  readonly contextSize: number;
 
-  constructor(vocabSize: number, numberEmbeddingDimensions: number) {
+  constructor(vocabSize: number, numberEmbeddingDimensions: number, contextSize: number) {
+    this.contextSize = contextSize;
     this.tokenEmbeddingTable = Array.from({ length: vocabSize }, () =>
       Array.from({ length: numberEmbeddingDimensions }, () => random() * 0.01),
     );
-    this.positionEmbeddingTable = Array.from({ length: vocabSize }, () =>
+    this.positionEmbeddingTable = Array.from({ length: contextSize }, () =>
       Array.from({ length: numberEmbeddingDimensions }, () => random() * 0.01),
     );
 
@@ -74,7 +76,8 @@ export class BigramLanguageModel {
     maxNewTokens: number,
   ) {
     for (let i = 0; i < maxNewTokens; i++) {
-      const { logits } = this.forward(idx);
+      const idxCond = idx.map((batch) => batch.slice(-this.contextSize)); // crop to blockSize
+      const { logits } = this.forward(idxCond);
 
       const lastTokenLogits = logits.map((batch) => batch[batch.length - 1]); // (B, C)
       const probs = softmaxBatched(lastTokenLogits); // (B, C)

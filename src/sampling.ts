@@ -1,7 +1,7 @@
 import type { Tensor1d, Tensor2d } from './tensorOps.js';
 import { random } from './random.js';
 
-const blockSize = 8; // Max context length for predictions
+export const blockSize = 8; // Max context length for predictions
 const batchSize = 4; // Independent sequences processed in parallel
 
 export function getBatch(data: Tensor1d): {

@@ -2,7 +2,7 @@ import { readFileSync } from 'fs';
 import { CharTokenizer } from './tokenizer.js';
 import { seed } from './random.js';
 import { BigramLanguageModel } from './tfOps.js';
-import { getBatch } from './sampling.js';
+import { blockSize, getBatch } from './sampling.js';
 import { AdamWOptimizer, type Optimizer, SDGOptimizer } from './optimizers.js';
 
 seed(42);
@@ -16,11 +16,11 @@ const splitIndex = 0.9 * data.length;
 const trainData = data.slice(0, splitIndex);
 const validationData = data.slice(splitIndex);
 
-const model = new BigramLanguageModel(tokenizer.getVocabSize(), numberEmbeddingDimensions);
+const model = new BigramLanguageModel(tokenizer.getVocabSize(), numberEmbeddingDimensions, blockSize);
 
 // Learning loop
 let loss;
-for (let i = 0; i < 100000; i++) {
+for (let i = 0; i < 10000; i++) {
   const { contexts, outputs } = getBatch(trainData);
   // const optimizer: Optimizer = new SDGOptimizer(model, 1e-3);
   const optimizer: Optimizer = new AdamWOptimizer(model, 1e-3, 0.9, 0.999, 1e-8, 0.01);
