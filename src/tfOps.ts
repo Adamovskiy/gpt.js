@@ -661,13 +661,13 @@ export class TransformerBlock {
 
 export class LayerNorm {
   readonly gamma: Tensor1d; // learnable scale parameters
-  readonly beta: Tensor1d;  // learnable shift parameters
+  readonly beta: Tensor1d; // learnable shift parameters
   readonly eps: number;
 
   constructor(embeddingSize: number, eps = 1e-5) {
     this.eps = eps;
     this.gamma = new Array<number>(embeddingSize).fill(1.0); // initialize to 1
-    this.beta = new Array<number>(embeddingSize).fill(0.0);  // initialize to 0
+    this.beta = new Array<number>(embeddingSize).fill(0.0); // initialize to 0
   }
 
   // x: (B, T, C) -> (B, T, C)
@@ -1018,15 +1018,25 @@ export class GPTModel implements Trainable {
       gradients[`layer${layerIdx}_ln1_beta`] = new Array<number>(block.ln1.beta.length).fill(0);
       gradients[`layer${layerIdx}_ln2_gamma`] = new Array<number>(block.ln2.gamma.length).fill(0);
       gradients[`layer${layerIdx}_ln2_beta`] = new Array<number>(block.ln2.beta.length).fill(0);
-      gradients[`layer${layerIdx}_ff1Weights`] = block.feedForward.linear1.weights.map((row) => new Array<number>(row.length).fill(0));
+      gradients[`layer${layerIdx}_ff1Weights`] = block.feedForward.linear1.weights.map((row) =>
+        new Array<number>(row.length).fill(0),
+      );
       gradients[`layer${layerIdx}_ff1Bias`] = new Array<number>(block.feedForward.linear1.bias.length).fill(0);
-      gradients[`layer${layerIdx}_ff2Weights`] = block.feedForward.linear2.weights.map((row) => new Array<number>(row.length).fill(0));
+      gradients[`layer${layerIdx}_ff2Weights`] = block.feedForward.linear2.weights.map((row) =>
+        new Array<number>(row.length).fill(0),
+      );
       gradients[`layer${layerIdx}_ff2Bias`] = new Array<number>(block.feedForward.linear2.bias.length).fill(0);
 
       block.multiHeadAttention.heads.forEach((head, headIdx) => {
-        gradients[`layer${layerIdx}_head${headIdx}_key`] = head.key.weights.map((row) => new Array<number>(row.length).fill(0));
-        gradients[`layer${layerIdx}_head${headIdx}_query`] = head.query.weights.map((row) => new Array<number>(row.length).fill(0));
-        gradients[`layer${layerIdx}_head${headIdx}_value`] = head.value.weights.map((row) => new Array<number>(row.length).fill(0));
+        gradients[`layer${layerIdx}_head${headIdx}_key`] = head.key.weights.map((row) =>
+          new Array<number>(row.length).fill(0),
+        );
+        gradients[`layer${layerIdx}_head${headIdx}_query`] = head.query.weights.map((row) =>
+          new Array<number>(row.length).fill(0),
+        );
+        gradients[`layer${layerIdx}_head${headIdx}_value`] = head.value.weights.map((row) =>
+          new Array<number>(row.length).fill(0),
+        );
       });
     });
 
@@ -1054,8 +1064,12 @@ export class GPTModel implements Trainable {
       let dCurrent = matrixMultiply(dLogits, transpose(this.languageModelingHead.weights));
 
       // Backward through final LayerNorm
-      const { dX: dFinalX, dGamma: dFinalGamma, dBeta: dFinalBeta } = this.lnFinal.backward(activations[activations.length - 1][b], dCurrent);
-      
+      const {
+        dX: dFinalX,
+        dGamma: dFinalGamma,
+        dBeta: dFinalBeta,
+      } = this.lnFinal.backward(activations[activations.length - 1][b], dCurrent);
+
       for (let i = 0; i < dFinalGamma.length; i++) {
         (gradients['lnFinal_gamma'] as Tensor1d)[i] += dFinalGamma[i];
         (gradients['lnFinal_beta'] as Tensor1d)[i] += dFinalBeta[i];
@@ -1113,7 +1127,7 @@ export class GPTModel implements Trainable {
         for (let i = 0; i < dCurrent[t].length; i++) {
           // Token embedding gradients (sparse update)
           (gradients['tokenEmbedding'] as Tensor2d)[token][i] += dCurrent[t][i];
-          // Position embedding gradients (dense update) 
+          // Position embedding gradients (dense update)
           (gradients['positionEmbedding'] as Tensor2d)[t][i] += dCurrent[t][i];
         }
       }

@@ -1,7 +1,7 @@
 import type { Tensor1d } from './tensorOps.js';
 
 export class CharTokenizer {
-  private readonly vocabulary: string[];
+  readonly vocabulary: string[];
   private readonly charToIndex: Map<string, number>;
 
   constructor(fileContent: string) {
