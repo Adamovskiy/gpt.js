@@ -44,6 +44,13 @@ export function softmax(logits: Tensor1d) {
   return exp.map((exp) => exp / sum);
 }
 
+// Given y = softmax(x) and dL/dy, returns dL/dx
+// dL/dx[j] = y[j] * (dL/dy[j] - sum(dL/dy * y))
+export function softmaxBackward(output: Tensor1d, dOutput: Tensor1d): Tensor1d {
+  const dot = output.reduce((sum, y, i) => sum + y * dOutput[i], 0);
+  return output.map((y, i) => y * (dOutput[i] - dot));
+}
+
 export function lowerTriangularMatrixAvgWeightedSoftmax(size: number): Tensor2d {
   // How much each token is interested in another
   // -infinity means no communication
