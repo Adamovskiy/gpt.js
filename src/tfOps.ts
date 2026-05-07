@@ -10,6 +10,7 @@ import {
   transpose,
 } from './tensorOps.js';
 import { random } from './random.js';
+import type { Trainable, Parameter } from './types.js';
 
 export function crossEntropy(logits: Tensor3d, targets: Tensor2d) {
   let sum = 0;
@@ -231,6 +232,206 @@ export class Head {
       // out = wei @ v -> (T, headSize)
       return matrixMultiply(weightedWei, v);
     });
+  }
+}
+
+export class BigramLanguageModelMultiHeadAttention implements Trainable {
+  readonly tokenEmbeddingTable: Tensor2d;
+  readonly positionEmbeddingTable: Tensor2d;
+  readonly multiHeadAttention: MultiHeadAttention;
+  readonly languageModelingHead: Linear;
+  readonly contextSize: number;
+
+  constructor(vocabSize: number, numberEmbeddingDimensions: number, contextSize: number, numHeads: number) {
+    this.contextSize = contextSize;
+    this.tokenEmbeddingTable = Array.from({ length: vocabSize }, () =>
+      Array.from({ length: numberEmbeddingDimensions }, () => random() * 0.01),
+    );
+    this.positionEmbeddingTable = Array.from({ length: contextSize }, () =>
+      Array.from({ length: numberEmbeddingDimensions }, () => random() * 0.01),
+    );
+
+    this.multiHeadAttention = new MultiHeadAttention(numberEmbeddingDimensions, numHeads);
+    this.languageModelingHead = new Linear(numberEmbeddingDimensions, vocabSize);
+  }
+
+  forward(
+    idx: Tensor2d, // (B, T)
+    targets?: Tensor2d, // (B, T)
+  ): {
+    logits: Tensor3d; // (B, T, C)
+    loss?: number;
+  } {
+    const tokenEmbeddings = idx.map((batch) => batch.map((token) => this.tokenEmbeddingTable[token])); // (B, T, C)
+    const positionEmbeddings = idx[0].map((_, i) => this.positionEmbeddingTable[i]); // (T, C)
+    const embeddingsSum = tokenEmbeddings.map((batch) => sum2d(batch, positionEmbeddings)); // (B, T, C)
+    const attended = this.multiHeadAttention.forward(embeddingsSum); // (B, T, C)
+    const logits = attended.map((batch) => batch.map((token) => this.languageModelingHead.forward(token))); // (B, T, vocabSize)
+
+    if (!targets) return { logits };
+    const loss = crossEntropy(logits, targets);
+
+    return { logits, loss };
+  }
+
+  generate(
+    idx: Tensor2d, // (B, T, C)
+    maxNewTokens: number,
+  ) {
+    for (let i = 0; i < maxNewTokens; i++) {
+      const idxCond = idx.map((batch) => batch.slice(-this.contextSize)); // crop to contextSize
+      const { logits } = this.forward(idxCond);
+
+      const lastTokenLogits = logits.map((batch) => batch[batch.length - 1]); // (B, C)
+      const probs = softmaxBatched(lastTokenLogits); // (B, C)
+      const idxNext = sampleMultinomial(probs);
+      concatBatched(idx, idxNext);
+    }
+
+    return idx;
+  }
+
+  getParameters(): Parameter[] {
+    const params: Parameter[] = [
+      { name: 'tokenEmbedding', data: this.tokenEmbeddingTable },
+      { name: 'positionEmbedding', data: this.positionEmbeddingTable },
+      { name: 'lmWeights', data: this.languageModelingHead.weights },
+      { name: 'lmBias', data: this.languageModelingHead.bias },
+    ];
+
+    // Add parameters from each attention head
+    this.multiHeadAttention.heads.forEach((head, headIdx) => {
+      params.push(
+        { name: `head${headIdx}_key`, data: head.key.weights },
+        { name: `head${headIdx}_query`, data: head.query.weights },
+        { name: `head${headIdx}_value`, data: head.value.weights },
+      );
+    });
+
+    return params;
+  }
+
+  computeGradients(contextTokens: Tensor2d, targets: Tensor2d): { [paramName: string]: Tensor2d | Tensor1d } {
+    const B = contextTokens.length;
+    const T = contextTokens[0].length;
+    const scale = 1 / (B * T);
+
+    // Forward pass (save intermediates for backward)
+    const tokenEmbeddings = contextTokens.map((batch) => batch.map((token) => this.tokenEmbeddingTable[token])); // (B, T, C)
+    const positionEmbeddings = contextTokens[0].map((_, i) => this.positionEmbeddingTable[i]); // (T, C)
+    const embeddingsSum = tokenEmbeddings.map((batch) => sum2d(batch, positionEmbeddings)); // (B, T, C)
+    const attended = this.multiHeadAttention.forward(embeddingsSum); // (B, T, C)
+    const logits = attended.map((batch) => batch.map((token) => this.languageModelingHead.forward(token))); // (B, T, vocabSize)
+
+    // Initialize gradient accumulators
+    const gradients: { [paramName: string]: Tensor2d | Tensor1d } = {
+      tokenEmbedding: this.tokenEmbeddingTable.map((row) => new Array<number>(row.length).fill(0)),
+      positionEmbedding: this.positionEmbeddingTable.map((row) => new Array<number>(row.length).fill(0)),
+      lmWeights: this.languageModelingHead.weights.map((row) => new Array<number>(row.length).fill(0)),
+      lmBias: new Array<number>(this.languageModelingHead.bias.length).fill(0),
+    };
+
+    // Initialize head gradients
+    this.multiHeadAttention.heads.forEach((head, headIdx) => {
+      gradients[`head${headIdx}_key`] = head.key.weights.map((row) => new Array<number>(row.length).fill(0));
+      gradients[`head${headIdx}_query`] = head.query.weights.map((row) => new Array<number>(row.length).fill(0));
+      gradients[`head${headIdx}_value`] = head.value.weights.map((row) => new Array<number>(row.length).fill(0));
+    });
+
+    for (let b = 0; b < B; b++) {
+      // d_logits = (softmax(logits) - one_hot(target)) * scale
+      const dLogits = logits[b].map((tokenLogits, t) => {
+        const probs = softmax(tokenLogits);
+        probs[targets[b][t]] -= 1;
+        return probs.map((v) => v * scale);
+      }); // (T, vocabSize)
+
+      // Backward through LM head
+      for (let t = 0; t < T; t++) {
+        for (let i = 0; i < attended[b][t].length; i++) {
+          for (let j = 0; j < dLogits[t].length; j++) {
+            (gradients['lmWeights'] as Tensor2d)[i][j] += attended[b][t][i] * dLogits[t][j];
+          }
+        }
+        for (let j = 0; j < dLogits[t].length; j++) {
+          (gradients['lmBias'] as Tensor1d)[j] += dLogits[t][j];
+        }
+      }
+
+      // d_attended = dLogits @ Wlm^T
+      const dAttended = matrixMultiply(dLogits, transpose(this.languageModelingHead.weights));
+
+      // Backward through multi-head attention
+      const { dX, headGrads } = this.multiHeadAttention.backward(embeddingsSum[b], dAttended);
+
+      // Accumulate head gradients
+      headGrads.forEach((headGrad, headIdx) => {
+        const { dWk, dWq, dWv } = headGrad;
+        for (let i = 0; i < dWk.length; i++) {
+          for (let j = 0; j < dWk[i].length; j++) {
+            (gradients[`head${headIdx}_key`] as Tensor2d)[i][j] += dWk[i][j];
+            (gradients[`head${headIdx}_query`] as Tensor2d)[i][j] += dWq[i][j];
+            (gradients[`head${headIdx}_value`] as Tensor2d)[i][j] += dWv[i][j];
+          }
+        }
+      });
+
+      // Backward through embedding lookup
+      for (let t = 0; t < T; t++) {
+        const token = contextTokens[b][t];
+        for (let i = 0; i < dX[t].length; i++) {
+          (gradients['tokenEmbedding'] as Tensor2d)[token][i] += dX[t][i];
+        }
+      }
+    }
+
+    return gradients;
+  }
+}
+
+export class MultiHeadAttention {
+  readonly heads: Head[];
+  readonly numHeads: number;
+  readonly headSize: number;
+
+  constructor(embeddingSize: number, numHeads: number) {
+    this.numHeads = numHeads;
+    this.headSize = Math.floor(embeddingSize / numHeads);
+    this.heads = Array.from({ length: numHeads }, () => new Head(embeddingSize, this.headSize));
+  }
+
+  // x: (B, T, C) -> (B, T, C)
+  forward(x: Tensor3d): Tensor3d {
+    const headOutputs = this.heads.map((head) => head.forward(x)); // Array of (B, T, headSize)
+
+    // Concatenate along the last dimension: (B, T, numHeads * headSize)
+    return x.map((_, batchIdx) =>
+      x[batchIdx].map((_, tokenIdx) => headOutputs.flatMap((headOutput) => headOutput[batchIdx][tokenIdx])),
+    );
+  }
+
+  // x: (T, C), dOut: (T, C) -> gradients for all heads
+  backward(
+    x: Tensor2d,
+    dOut: Tensor2d,
+  ): { dX: Tensor2d; headGrads: Array<{ dWk: Tensor2d; dWq: Tensor2d; dWv: Tensor2d }> } {
+    // Split dOut back into per-head gradients: (T, numHeads * headSize) -> numHeads × (T, headSize)
+    const dOutPerHead = this.heads.map((_, headIdx) =>
+      dOut.map((tokenGrad) => tokenGrad.slice(headIdx * this.headSize, (headIdx + 1) * this.headSize)),
+    );
+
+    // Backward through each head
+    const headResults = this.heads.map((head, headIdx) => head.backward(x, dOutPerHead[headIdx]));
+
+    // Sum dX contributions from all heads
+    const dX = headResults.reduce(
+      (acc, { dX: headDX }) => acc.map((row, i) => row.map((val, j) => val + headDX[i][j])),
+      x.map((row) => new Array<number>(row.length).fill(0)),
+    );
+
+    const headGrads = headResults.map(({ dWk, dWq, dWv }) => ({ dWk, dWq, dWv }));
+
+    return { dX, headGrads };
   }
 }
 
