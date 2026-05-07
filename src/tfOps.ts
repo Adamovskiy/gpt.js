@@ -382,6 +382,7 @@ export class BigramLanguageModelMultiHeadAttention implements Trainable {
         const token = contextTokens[b][t];
         for (let i = 0; i < dX[t].length; i++) {
           (gradients['tokenEmbedding'] as Tensor2d)[token][i] += dX[t][i];
+          (gradients['positionEmbedding'] as Tensor2d)[t][i] += dX[t][i];
         }
       }
     }
@@ -569,6 +570,7 @@ export class BigramLanguageModelWithFF implements Trainable {
         const token = contextTokens[b][t];
         for (let i = 0; i < dX[t].length; i++) {
           (gradients['tokenEmbedding'] as Tensor2d)[token][i] += dX[t][i];
+          (gradients['positionEmbedding'] as Tensor2d)[t][i] += dX[t][i];
         }
       }
     }
@@ -1109,7 +1111,10 @@ export class GPTModel implements Trainable {
       for (let t = 0; t < T; t++) {
         const token = contextTokens[b][t];
         for (let i = 0; i < dCurrent[t].length; i++) {
+          // Token embedding gradients (sparse update)
           (gradients['tokenEmbedding'] as Tensor2d)[token][i] += dCurrent[t][i];
+          // Position embedding gradients (dense update) 
+          (gradients['positionEmbedding'] as Tensor2d)[t][i] += dCurrent[t][i];
         }
       }
     }

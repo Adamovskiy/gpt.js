@@ -15,12 +15,12 @@ const data = tokenizer.encode(fileContent);
 const splitIndex = 0.9 * data.length;
 const trainData = data.slice(0, splitIndex);
 
-const numHeads = 4;
-const numLayers = 3;
+const numHeads = 2; // Reduce heads
+const numLayers = 2; // Reduce layers
 const model = new GPTModel(tokenizer.getVocabSize(), numberEmbeddingDimensions, blockSize, numHeads, numLayers);
 
-// Learning loop
-const optimizer = new UniversalAdamWOptimizer(model, 1e-3, 0.9, 0.999, 1e-8, 0.01);
+// Learning loop - much smaller learning rate
+const optimizer = new UniversalAdamWOptimizer(model, 3e-4, 0.9, 0.999, 1e-8, 0.01);
 let loss;
 for (let i = 0; i < 10000; i++) {
   const { contexts, outputs } = getBatch(trainData);
