@@ -1,9 +1,8 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import fileContent from './voynaimir.txt?raw';
 import { seed } from './random.ts';
 import { CharTokenizer } from './tokenizer.ts';
 import { randomOutputLoss } from './tfOps.ts';
-import { getBatch } from './sampling.ts';
 import { type Optimizer } from './optimizers.ts';
 import { Button } from '@/components/ui/button.tsx';
 import { Loader } from 'lucide-react';
@@ -17,6 +16,7 @@ import { Label } from './components/ui/label.tsx';
 import { Input } from './components/ui/input.tsx';
 import { OptimizerConfig } from './components/optimizer/OptimizerConfig.tsx';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card.tsx';
+import TrainWorker from './train.worker.ts?worker';
 
 function App() {
   const [lossChartData, setLossChartData] = useState<number[]>([]);
@@ -34,10 +34,45 @@ function App() {
     setTokenizer(new CharTokenizer(fileContent));
   }, []);
 
+  const bufferRef = useRef<number[]>([]);
+  const rafRef = useRef<number | null>(null);
+  const workerRef = useRef<Worker>(null);
+
+  useEffect(() => {
+    const worker = new TrainWorker();
+
+    worker.onmessage = (event) => {
+      const value = event.data.value;
+
+      bufferRef.current.push(value);
+
+      if (rafRef.current == null) {
+        rafRef.current = requestAnimationFrame(() => {
+          rafRef.current = null;
+
+          setLossChartData([...bufferRef.current]);
+        });
+      }
+    };
+    workerRef.current = worker;
+    return () => {
+      worker.terminate();
+
+      if (rafRef.current != null) {
+        cancelAnimationFrame(rafRef.current);
+      }
+    };
+  }, []);
+
+  const deferredPoints = useDeferredValue(lossChartData);
+
   const trainModel = useCallback(() => {
-    if (!tokenizer || !model || !optimizer) return;
+    if (!tokenizer || !model || !optimizer || !workerRef.current) return;
     setTrainingInProgress(true);
-    setTimeout(() => {
+    workerRef.current.postMessage({ type: 'start' });
+
+    // TODO move this calculation App -> worker -> GPU
+    /*
       const data = tokenizer.encode(fileContent);
       const splitIndex = 0.9 * data.length;
       const trainData = data.slice(0, splitIndex);
@@ -50,7 +85,7 @@ function App() {
         setLossChartData((data) => [...data, lossCapture]);
         console.log(`Loss: ${loss} (perfect - 0, random - ${randomOutputLoss(tokenizer.getVocabSize())})`);
       }
-    }, 0);
+    */
     setTrainingInProgress(false);
   }, [tokenizer, model, iterations, optimizer]);
 
@@ -137,7 +172,7 @@ function App() {
           >
             <LineChart
               accessibilityLayer
-              data={lossChartData.map((loss, iteration) => ({
+              data={deferredPoints.map((loss, iteration) => ({
                 iteration: iteration,
                 loss: loss,
                 randomOutput: randomOutputLossValue,
