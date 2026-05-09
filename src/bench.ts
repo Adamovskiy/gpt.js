@@ -4,7 +4,7 @@ import {
   matrixMultiply,
   getBagOfWordsOptimized,
   getBagOfWordsUnoptimized,
-} from './tensorOps.js';
+} from './llm/tensorOps.ts';
 
 const ITERATIONS = 10_000;
 

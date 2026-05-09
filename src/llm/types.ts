@@ -1,8 +1,15 @@
-import type { Tensor1d, Tensor2d, Tensor3d } from './tensorOps.js';
+import type { Tensor1d, Tensor2d, Tensor3d } from './tensorOps.ts';
 
 export interface Parameter {
   name: string;
   data: Tensor2d | Tensor1d;
+}
+
+export interface Tokenizer {
+  encode(str: string): Tensor1d;
+  decode(indices: Tensor1d): string;
+  getVocabSize(): number;
+  getVocab(): string[];
 }
 
 export interface Trainable {

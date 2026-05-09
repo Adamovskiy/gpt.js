@@ -1,6 +1,6 @@
-import type { Trainable } from '../../types.ts';
+import type { Trainable } from '../../llm/types.ts';
 import { Button } from '../ui/button.tsx';
-import { type Optimizer, UniversalAdamWOptimizer, GPUAdamWOptimizer } from '../../optimizers.ts';
+import { type Optimizer, UniversalAdamWOptimizer, GPUAdamWOptimizer } from '../../llm/optimizers/optimizers.ts';
 import { useEffect } from 'react';
 
 export function OptimizerConfig({
@@ -34,7 +34,6 @@ export function OptimizerConfig({
         >
           {optimizer ? 'Re-set' : 'Set'} CPU AdamW optimizer
         </Button>
-
       </div>
     </div>
   );

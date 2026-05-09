@@ -2,22 +2,22 @@ import { useMemo, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 
-import type { CharTokenizer } from '@/tokenizer.ts';
+import type { Tokenizer } from '../../llm/types.ts';
 
 const PAGE_SIZE = 36;
 
-export function Vocabulary({ tokenizer }: { tokenizer: CharTokenizer }) {
+export function Vocabulary({ tokenizer }: { tokenizer: Tokenizer }) {
   const [page, setPage] = useState(0);
 
-  const totalItems = tokenizer.vocabulary.length;
+  const totalItems = tokenizer.getVocabSize();
   const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
 
   const currentPage = Math.min(page, totalPages - 1);
 
   const visibleVocabulary = useMemo(() => {
     const start = currentPage * PAGE_SIZE;
-    return tokenizer.vocabulary.slice(start, start + PAGE_SIZE);
-  }, [tokenizer.vocabulary, currentPage]);
+    return tokenizer.getVocab().slice(start, start + PAGE_SIZE);
+  }, [tokenizer, currentPage]);
 
   const from = totalItems === 0 ? 0 : currentPage * PAGE_SIZE + 1;
   const to = Math.min((currentPage + 1) * PAGE_SIZE, totalItems);

@@ -1,12 +1,17 @@
-import type { Tensor1d } from './tensorOps.js';
+import type { Tensor1d } from '../tensorOps.ts';
+import type { Tokenizer } from '../types.ts';
 
-export class CharTokenizer {
-  readonly vocabulary: string[];
+export class CharTokenizer implements Tokenizer {
+  private readonly vocabulary: string[];
   private readonly charToIndex: Map<string, number>;
 
   constructor(fileContent: string) {
     this.vocabulary = Array.from(new Set(fileContent)).sort();
     this.charToIndex = new Map(this.vocabulary.map((ch, i) => [ch, i]));
+  }
+
+  getVocab(): string[] {
+    return this.vocabulary;
   }
 
   encode(str: string): Tensor1d {

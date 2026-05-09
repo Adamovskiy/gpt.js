@@ -1,3 +1,5 @@
+// MWC random number generator. Unlike Math.random(), it supports seeding.
+
 let m_w = 123456789;
 let m_z = 987654321;
 const mask = 0xffffffff;

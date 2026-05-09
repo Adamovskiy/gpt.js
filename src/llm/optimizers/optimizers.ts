@@ -1,8 +1,8 @@
-import { softmax, transpose, matrixMultiply, type Tensor1d, type Tensor2d, type Tensor3d } from './tensorOps.js';
-import type { Linear } from './tfOps.js';
-import type { BigramLanguageModelSingleHeadAttention } from './tfOps.js';
-import type { Trainable, LanguageModel } from './types.js';
-import { GPUOperations } from './gpu/gpuOps.js';
+import { softmax, transpose, matrixMultiply, type Tensor1d, type Tensor2d, type Tensor3d } from '../tensorOps.ts';
+import type { Linear } from '../models/tfOps.ts';
+import type { BigramLanguageModelSingleHeadAttention } from '../models/tfOps.ts';
+import type { Trainable, LanguageModel } from '../types.ts';
+import { GPUOperations } from '../../gpu/gpuOps.ts';
 
 export interface Model {
   forward(contextTokens: Tensor2d, outputs: Tensor2d): { logits: Tensor3d; loss?: number };

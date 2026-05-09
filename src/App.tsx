@@ -1,10 +1,8 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
-import fileContent from './voynaimir.txt?raw';
-import { seed } from './random.ts';
-import { CharTokenizer } from './tokenizer.ts';
-import { randomOutputLoss } from './tfOps.ts';
-import { getBatch } from './sampling.ts';
-import { type Optimizer } from './optimizers.ts';
+import { seed } from './lib/random.ts';
+import { randomOutputLoss } from './llm/models/tfOps.ts';
+import { getBatch } from './llm/sampling.ts';
+import { type Optimizer } from './llm/optimizers/optimizers.ts';
 import { Button } from '@/components/ui/button.tsx';
 import { Loader } from 'lucide-react';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from './components/ui/chart.tsx';
@@ -12,16 +10,17 @@ import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
 import { TokenizerDemo } from '@/components/tokenizer/TokenizerDemo.tsx';
 import { Vocabulary } from '@/components/tokenizer/Vocabulary.tsx';
 import { ModelConfig } from './components/model/ModelConfig.tsx';
-import type { LanguageModel } from './types.ts';
+import type { LanguageModel, Tokenizer } from './llm/types.ts';
 import { Label } from './components/ui/label.tsx';
 import { Input } from './components/ui/input.tsx';
 import { OptimizerConfig } from './components/optimizer/OptimizerConfig.tsx';
-import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card.tsx';
 import TrainWorker from './train.worker.ts?worker';
+import { BPETokenizer } from './llm/tokenizers/BPETokenizer.ts';
+import { InputPreview, type InputSource } from './components/input/InputPreview.tsx';
 
 function App() {
   const [lossChartData, setLossChartData] = useState<number[]>([]);
-  const [tokenizer, setTokenizer] = useState<CharTokenizer | undefined>();
+  const [tokenizer, setTokenizer] = useState<Tokenizer | undefined>();
   const [model, setModel] = useState<LanguageModel | undefined>();
   const [optimizer, setOptimizer] = useState<Optimizer | undefined>();
   const [trainingInProgress, setTrainingInProgress] = useState(false);
@@ -29,11 +28,28 @@ function App() {
   const [initialString, setInitialString] = useState('');
   const [generateOutput, setGenerateOutput] = useState<string>();
   const [avgIterationTime, setAvgIterationTime] = useState<number | null>(null);
+  const [inputSource, setInputSource] = useState<InputSource>();
+  const [fileContent, setFileContent] = useState<string>('');
+  const [fileName, setFileName] = useState<string>('');
+
+  useEffect(() => {
+    // Init RNG on app mount
+    seed(42);
+  }, []);
 
   const initTokenizer = useCallback(() => {
-    if (tokenizer) return;
-    seed(42);
-    setTokenizer(new CharTokenizer(fileContent));
+    if (tokenizer || !fileContent) return;
+    setTokenizer(new BPETokenizer(fileContent));
+  }, [tokenizer, fileContent]);
+
+  const handleContentLoad = useCallback((content: string, name: string) => {
+    setFileContent(content);
+    setFileName(name);
+    // Reset tokenizer when content changes
+    setTokenizer(undefined);
+    setModel(undefined);
+    setOptimizer(undefined);
+    setLossChartData([]);
   }, []);
 
   const bufferRef = useRef<number[]>([]);
@@ -44,7 +60,7 @@ function App() {
     const worker = new TrainWorker();
 
     worker.onmessage = (event) => {
-      const { type, value, message, iteration } = event.data;
+      const { type, value, message } = event.data;
 
       if (type === 'loss') {
         bufferRef.current.push(value);
@@ -162,17 +178,16 @@ function App() {
   return (
     <main className="max-w-3xl mx-auto px-2 py-4 flex flex-col gap-4">
       <div>
-        <Card>
-          <CardHeader>
-            <CardTitle>Input preview: voynaimir.txt</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <pre className="bg-muted p-2 whitespace-pre-wrap">{fileContent.slice(0, 200)}...</pre>
-          </CardContent>
-        </Card>
-        {!tokenizer && (
-          <div>
-            <Button onClick={() => initTokenizer()}>Init model</Button>
+        <InputPreview
+          selectedSource={inputSource}
+          onSourceChange={setInputSource}
+          fileContent={fileContent}
+          fileName={fileName}
+          onContentLoad={handleContentLoad}
+        />
+        {fileContent && !tokenizer && (
+          <div className="mt-4">
+            <Button onClick={() => initTokenizer()}>Init tokenizer</Button>
           </div>
         )}
       </div>

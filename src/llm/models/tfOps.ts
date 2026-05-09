@@ -9,10 +9,10 @@ import {
   matrixMultiply,
   sum1d,
   transpose,
-} from './tensorOps.js';
-import { random } from './random.js';
-import type { Trainable, Parameter, LanguageModel } from './types.js';
-import { GPUOperations } from './gpu/gpuOps.js';
+} from '../tensorOps.ts';
+import { random } from '../../lib/random.ts';
+import type { Trainable, Parameter, LanguageModel } from '../types.ts';
+import { GPUOperations } from '../../gpu/gpuOps.ts';
 
 export function randomOutputLoss(vocabSize: number) {
   return -Math.log(1 / vocabSize);
@@ -158,8 +158,8 @@ export class BigramLanguageModel implements LanguageModel {
       }
 
       // Backward through embeddings
-      const dEmbeddings = dLogits.map((dLogit) => 
-        matrixMultiply([dLogit], transpose(this.languageModelingHead.weights))[0]
+      const dEmbeddings = dLogits.map(
+        (dLogit) => matrixMultiply([dLogit], transpose(this.languageModelingHead.weights))[0],
       );
 
       for (let t = 0; t < T; t++) {
@@ -290,8 +290,8 @@ export class BigramLanguageModelSingleHeadAttention implements LanguageModel {
       }
 
       // Simple approximation for attention gradients (could be more accurate)
-      const dAttended = dLogits.map((dLogit) => 
-        matrixMultiply([dLogit], transpose(this.languageModelingHead.weights))[0]
+      const dAttended = dLogits.map(
+        (dLogit) => matrixMultiply([dLogit], transpose(this.languageModelingHead.weights))[0],
       );
 
       // Simplified gradient computation for embeddings
@@ -1453,7 +1453,7 @@ export class GPTModelGPU implements LanguageModel {
   computeGradients(contextTokens: Tensor2d, targets: Tensor2d): { [paramName: string]: Tensor2d | Tensor1d } {
     // GPU gradient computation is complex - fallback to CPU implementation for now
     // This is a hybrid approach: forward pass on GPU, backward pass on CPU
-    
+
     const B = contextTokens.length;
     const T = contextTokens[0].length;
     const scale = 1 / (B * T);
@@ -1468,26 +1468,26 @@ export class GPTModelGPU implements LanguageModel {
     for (let i = 0; i < this.blocks.length; i++) {
       // Use CPU version of transformer blocks for gradient computation
       const cpuBlock = new TransformerBlock(x[0][0].length, this.blocks[i].multiHeadAttention.numHeads);
-      
+
       // Copy GPU weights to CPU block for gradient computation
       cpuBlock.ln1.gamma = [...this.blocks[i].ln1.gamma];
       cpuBlock.ln1.beta = [...this.blocks[i].ln1.beta];
       cpuBlock.ln2.gamma = [...this.blocks[i].ln2.gamma];
       cpuBlock.ln2.beta = [...this.blocks[i].ln2.beta];
-      
+
       // Copy attention weights
       cpuBlock.multiHeadAttention.heads.forEach((head, headIdx) => {
-        head.key.weights = this.blocks[i].multiHeadAttention.heads[headIdx].key.weights.map(row => [...row]);
-        head.query.weights = this.blocks[i].multiHeadAttention.heads[headIdx].query.weights.map(row => [...row]);
-        head.value.weights = this.blocks[i].multiHeadAttention.heads[headIdx].value.weights.map(row => [...row]);
+        head.key.weights = this.blocks[i].multiHeadAttention.heads[headIdx].key.weights.map((row) => [...row]);
+        head.query.weights = this.blocks[i].multiHeadAttention.heads[headIdx].query.weights.map((row) => [...row]);
+        head.value.weights = this.blocks[i].multiHeadAttention.heads[headIdx].value.weights.map((row) => [...row]);
       });
-      
+
       // Copy feedforward weights
-      cpuBlock.feedForward.linear1.weights = this.blocks[i].feedForward.linear1.weights.map(row => [...row]);
+      cpuBlock.feedForward.linear1.weights = this.blocks[i].feedForward.linear1.weights.map((row) => [...row]);
       cpuBlock.feedForward.linear1.bias = [...this.blocks[i].feedForward.linear1.bias];
-      cpuBlock.feedForward.linear2.weights = this.blocks[i].feedForward.linear2.weights.map(row => [...row]);
+      cpuBlock.feedForward.linear2.weights = this.blocks[i].feedForward.linear2.weights.map((row) => [...row]);
       cpuBlock.feedForward.linear2.bias = [...this.blocks[i].feedForward.linear2.bias];
-      
+
       x = cpuBlock.forward(x);
       activations.push(x);
     }
@@ -1496,11 +1496,11 @@ export class GPTModelGPU implements LanguageModel {
     const cpuLnFinal = new LayerNorm(x[0][0].length);
     cpuLnFinal.gamma = [...this.lnFinal.gamma];
     cpuLnFinal.beta = [...this.lnFinal.beta];
-    
+
     const cpuLmHead = new Linear(x[0][0].length, this.languageModelingHead.weights[0].length);
-    cpuLmHead.weights = this.languageModelingHead.weights.map(row => [...row]);
+    cpuLmHead.weights = this.languageModelingHead.weights.map((row) => [...row]);
     cpuLmHead.bias = [...this.languageModelingHead.bias];
-    
+
     const normalized = cpuLnFinal.forward(x);
     const logits = normalized.map((batch) => batch.map((token) => cpuLmHead.forward(token))); // (B, T, vocabSize)
 

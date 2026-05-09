@@ -2,7 +2,7 @@ import matmulShader from './shaders/matmul.wgsl?raw';
 import softmaxShader from './shaders/softmax.wgsl?raw';
 import elementwiseShader from './shaders/elementwise.wgsl?raw';
 import layernormShader from './shaders/layernorm.wgsl?raw';
-import { type Tensor2d, type Tensor3d } from '../tensorOps.js';
+import { type Tensor2d, type Tensor3d } from '../llm/tensorOps.ts';
 
 export class GPUOperations {
   private device: GPUDevice;

@@ -1,12 +1,12 @@
-import type { LanguageModel } from '../../types.ts';
+import type { LanguageModel } from '../../llm/types.ts';
 import {
   GPTModel,
   GPTModelGPU,
   BigramLanguageModel,
   BigramLanguageModelSingleHeadAttention,
   BigramLanguageModelMultiHeadAttention,
-} from '../../tfOps.ts';
-import { blockSize } from '../../sampling.ts';
+} from '../../llm/models/tfOps.ts';
+import { blockSize } from '../../llm/sampling.ts';
 import { Button } from '../ui/button.tsx';
 import { Badge } from '../ui/badge.tsx';
 import { useState } from 'react';
