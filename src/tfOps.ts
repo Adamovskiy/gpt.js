@@ -13,6 +13,10 @@ import {
 import { random } from './random.js';
 import type { Trainable, Parameter } from './types.js';
 
+export function randomOutputLoss(vocabSize: number) {
+  return -Math.log(1 / vocabSize);
+}
+
 export function crossEntropy(logits: Tensor3d, targets: Tensor2d) {
   let sum = 0;
   let count = 0;
