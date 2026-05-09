@@ -1,133 +1,72 @@
-import shaderCode from '@/gpu/shaders/sum.wgsl?raw';
+// Simple worker for future GPU operations if needed
 
-let devicePromise: Promise<GPUDevice> | null = null;
+self.onmessage = async (event) => {
+  const { type, model, tokenizer, optimizer, iterations, trainData } = event.data;
 
-function getDevice(): Promise<GPUDevice> {
-  if (!devicePromise) {
-    devicePromise = (async () => {
-      if (!('gpu' in navigator)) {
-        throw new Error('WebGPU is not available in this browser/context.');
+  if (type === 'train') {
+    if (!model || !tokenizer || !optimizer) {
+      self.postMessage({
+        type: 'error',
+        message: 'Missing model, tokenizer, or optimizer',
+      });
+      return;
+    }
+
+    try {
+      self.postMessage({
+        type: 'status',
+        message: `Training ${model.constructor?.name || 'model'} for ${iterations} iterations...`,
+      });
+
+      // Use the actual user-configured model, tokenizer, and optimizer
+      for (let i = 0; i < iterations; i++) {
+        const { contexts, outputs } = getBatch(trainData);
+
+        try {
+          // Train using the user's optimizer and model
+          const loss = optimizer.train(contexts, outputs);
+
+          self.postMessage({
+            type: 'loss',
+            value: loss,
+            iteration: i,
+          });
+
+          // Small delay to show progress
+          if (i % 10 === 0) {
+            await new Promise((resolve) => setTimeout(resolve, 10));
+          }
+        } catch (error) {
+          console.error('Training step failed:', error);
+          self.postMessage({
+            type: 'error',
+            message: `Training failed at iteration ${i}: ${error.message}`,
+          });
+          break;
+        }
       }
 
-      const adapter = await navigator.gpu.requestAdapter();
-      if (!adapter) {
-        throw new Error('No suitable GPU adapter found.');
-      }
-
-      return adapter.requestDevice();
-    })();
-  }
-
-  return devicePromise;
-}
-
-async function sum1ToIOnGpu(i: number): Promise<number> {
-  const device = await getDevice();
-
-  const count = i;
-  const bufferSize = Math.max(4, count * 4);
-
-  const paramsArray = new Uint32Array([i]);
-
-  const paramsBuffer = device.createBuffer({
-    size: 4,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  });
-
-  device.queue.writeBuffer(paramsBuffer, 0, paramsArray);
-
-  const partialSumsBuffer = device.createBuffer({
-    size: bufferSize,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
-  });
-
-  const readbackBuffer = device.createBuffer({
-    size: bufferSize,
-    usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
-  });
-
-  const shaderModule = device.createShaderModule({
-    code: shaderCode,
-  });
-
-  const pipeline = device.createComputePipeline({
-    layout: 'auto',
-    compute: {
-      module: shaderModule,
-      entryPoint: 'main',
-    },
-  });
-
-  const bindGroup = device.createBindGroup({
-    layout: pipeline.getBindGroupLayout(0),
-    entries: [
-      {
-        binding: 0,
-        resource: {
-          buffer: paramsBuffer,
-        },
-      },
-      {
-        binding: 1,
-        resource: {
-          buffer: partialSumsBuffer,
-        },
-      },
-    ],
-  });
-
-  const commandEncoder = device.createCommandEncoder();
-
-  const passEncoder = commandEncoder.beginComputePass();
-  passEncoder.setPipeline(pipeline);
-  passEncoder.setBindGroup(0, bindGroup);
-
-  const workgroupSize = 256;
-  const workgroupCount = Math.ceil(count / workgroupSize);
-
-  if (workgroupCount > 0) {
-    passEncoder.dispatchWorkgroups(workgroupCount);
-  }
-
-  passEncoder.end();
-
-  commandEncoder.copyBufferToBuffer(partialSumsBuffer, 0, readbackBuffer, 0, bufferSize);
-
-  device.queue.submit([commandEncoder.finish()]);
-
-  await readbackBuffer.mapAsync(GPUMapMode.READ);
-
-  const mappedRange = readbackBuffer.getMappedRange();
-  const values = new Uint32Array(mappedRange.slice(0));
-
-  readbackBuffer.unmap();
-
-  let sum = 0;
-  for (let n = 0; n < count; n++) {
-    sum += values[n];
-  }
-
-  paramsBuffer.destroy();
-  partialSumsBuffer.destroy();
-  readbackBuffer.destroy();
-
-  return sum;
-}
-
-self.onmessage = () => {
-  // An example of how to call WGSL
-  sum1ToIOnGpu(10_000).then((result) => {
-    console.log('Received message', result);
-  });
-
-  for (let i = 0; i < 10_000; i++) {
-    const value = heavyCalculation(i);
-
-    // An example of how to communicate with a web worker
-    self.postMessage({
-      index: i,
-      value,
-    });
+      self.postMessage({
+        type: 'status',
+        message: 'Training completed',
+      });
+    } catch (error) {
+      console.error('Training failed:', error);
+      self.postMessage({
+        type: 'error',
+        message: `Training failed: ${error.message}`,
+      });
+    }
+  } else if (type === 'demo') {
+    // Simple demo functionality
+    for (let i = 0; i < 1000; i++) {
+      const value = heavyCalculation(i);
+      self.postMessage({
+        type: 'demo',
+        index: i,
+        value,
+      });
+    }
   }
 };
 

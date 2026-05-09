@@ -1,6 +1,11 @@
+"If you can't explain something to a first year student, then you haven't really understood."
+– Richard Feynman (or Einstein?)
+
 Source: https://www.youtube.com/watch?v=kCc8FmEb1nY
 This is not reasonable to use TypeScript for this task in actual production. The goal is to demonstrate basic logic for developers who know nothing about data science, and who not speak Python.
 Can drop your own training data set. I used Tolstoy's War and Peace. A common training data set for this is Tiny Shakespear https://github.com/karpathy/char-rnn/blob/master/data/tinyshakespeare/input.txt
+
+This is a self-explanatory app. The web page exposes code of stages of implementation, lets you execute and introspect them.
 
 This is essentially Andrej Karpathy's NanoGPT (https://www.youtube.com/watch?v=kCc8FmEb1nY), with some tweaks:
 * Each slice of each stage of implementation is dynamically introspectable

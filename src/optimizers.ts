@@ -1,7 +1,8 @@
 import { softmax, transpose, matrixMultiply, type Tensor1d, type Tensor2d, type Tensor3d } from './tensorOps.js';
 import type { Linear } from './tfOps.js';
 import type { BigramLanguageModelSingleHeadAttention } from './tfOps.js';
-import type { Trainable } from './types.js';
+import type { Trainable, LanguageModel } from './types.js';
+import { GPUOperations } from './gpu/gpuOps.js';
 
 export interface Model {
   forward(contextTokens: Tensor2d, outputs: Tensor2d): { logits: Tensor3d; loss?: number };
@@ -10,7 +11,7 @@ export interface Model {
 }
 
 export interface Optimizer {
-  train(contextTokens: Tensor2d, outputs: Tensor2d): number;
+  train(contextTokens: Tensor2d, outputs: Tensor2d): Promise<number>;
 }
 
 export class SDGOptimizer implements Optimizer {
@@ -19,8 +20,8 @@ export class SDGOptimizer implements Optimizer {
     private readonly learningRate: number,
   ) {}
 
-  train(contextTokens: Tensor2d, outputs: Tensor2d): number {
-    const { logits, loss } = this.model.forward(contextTokens, outputs);
+  async train(contextTokens: Tensor2d, outputs: Tensor2d): Promise<number> {
+    const { logits, loss } = await this.model.forward(contextTokens, outputs);
 
     const countTokens = contextTokens.reduce((sum, batch) => sum + batch.length, 0);
     const scale = 1 / countTokens;
@@ -123,9 +124,9 @@ export class AdamWOptimizer implements Optimizer {
     this.biasVelocity = new Array<number>(model.languageModelingHead.bias.length).fill(0);
   }
 
-  train(contextTokens: Tensor2d, outputs: Tensor2d): number {
+  async train(contextTokens: Tensor2d, outputs: Tensor2d): Promise<number> {
     this.stepCount++;
-    const { logits, loss } = this.model.forward(contextTokens, outputs);
+    const { logits, loss } = await this.model.forward(contextTokens, outputs);
 
     const countTokens = contextTokens.reduce((sum, batch) => sum + batch.length, 0);
     const scale = 1 / countTokens;
@@ -416,12 +417,14 @@ export class UniversalAdamWOptimizer implements Optimizer {
     }
   }
 
-  train(contextTokens: Tensor2d, targets: Tensor2d): number {
+  async train(contextTokens: Tensor2d, targets: Tensor2d): Promise<number> {
     this.stepCount++;
 
-    // Compute gradients
-    const gradients = this.model.computeGradients(contextTokens, targets);
-    const { loss } = this.model.forward(contextTokens, targets);
+    // Forward pass first to get loss and logits
+    const { logits, loss } = await this.model.forward(contextTokens, targets);
+
+    // Compute gradients (may reuse forward pass results for GPU models)
+    const gradients = this.model.computeGradients(contextTokens, targets, logits);
 
     // AdamW update
     const { beta1, beta2, eps, learningRate, weightDecay } = this;
@@ -470,6 +473,154 @@ export class UniversalAdamWOptimizer implements Optimizer {
         }
       }
     }
+
+    return loss || 0;
+  }
+}
+
+/**
+ * GPU-accelerated AdamW optimizer - только для GPU моделей
+ * Использует GPU для обновления весов, но CPU для градиентов
+ */
+export class GPUAdamWOptimizer implements Optimizer {
+  private readonly momentum: { [paramName: string]: Tensor2d | Tensor1d } = {};
+  private readonly velocity: { [paramName: string]: Tensor2d | Tensor1d } = {};
+  private stepCount: number = 0;
+
+  constructor(
+    private readonly model: LanguageModel,
+    private readonly gpuOps: GPUOperations,
+    private readonly learningRate: number = 0.001,
+    private readonly beta1: number = 0.9,
+    private readonly beta2: number = 0.999,
+    private readonly eps: number = 1e-8,
+    private readonly weightDecay: number = 0.01,
+  ) {
+    // Initialize momentum and velocity for all parameters
+    const params = this.model.getParameters();
+    for (const param of params) {
+      if (Array.isArray(param.data[0])) {
+        // 2D parameter
+        const data = param.data as Tensor2d;
+        this.momentum[param.name] = data.map((row) => new Array<number>(row.length).fill(0));
+        this.velocity[param.name] = data.map((row) => new Array<number>(row.length).fill(0));
+      } else {
+        // 1D parameter
+        const data = param.data as Tensor1d;
+        this.momentum[param.name] = new Array<number>(data.length).fill(0);
+        this.velocity[param.name] = new Array<number>(data.length).fill(0);
+      }
+    }
+  }
+
+  async train(contextTokens: Tensor2d, targets: Tensor2d): Promise<number> {
+    this.stepCount++;
+
+    // Forward pass first to get loss and logits
+    const { logits, loss } = await this.model.forward(contextTokens, targets);
+
+    // Compute gradients (CPU - но может использовать GPU logits для экономии)
+    const gradients = this.model.computeGradients(contextTokens, targets, logits);
+
+    // GPU-accelerated AdamW update
+    const { beta1, beta2, eps, learningRate, weightDecay } = this;
+    const bc1 = 1 - Math.pow(beta1, this.stepCount);
+    const bc2 = 1 - Math.pow(beta2, this.stepCount);
+
+    const params = this.model.getParameters();
+
+    // Process parameters in batches for GPU efficiency
+    const parameterUpdates: Promise<void>[] = [];
+
+    for (const param of params) {
+      const grad = gradients[param.name];
+      const momentum = this.momentum[param.name];
+      const velocity = this.velocity[param.name];
+
+      if (Array.isArray(param.data[0])) {
+        // 2D parameter - flatten for GPU processing
+        const data = param.data as Tensor2d;
+        const gradData = grad as Tensor2d;
+        const momentumData = momentum as Tensor2d;
+        const velocityData = velocity as Tensor2d;
+
+        // Flatten arrays
+        const flatWeights = new Float32Array(data.flat());
+        const flatGrads = new Float32Array(gradData.flat());
+        const flatMomentum = new Float32Array(momentumData.flat());
+        const flatVelocity = new Float32Array(velocityData.flat());
+
+        // GPU update
+        const updatePromise = this.gpuOps
+          .adamwUpdate(
+            flatWeights,
+            flatGrads,
+            flatMomentum,
+            flatVelocity,
+            beta1,
+            beta2,
+            eps,
+            learningRate,
+            weightDecay,
+            bc1,
+            bc2,
+          )
+          .then(() => {
+            // Unflatten results back to 2D
+            let idx = 0;
+            for (let i = 0; i < data.length; i++) {
+              for (let j = 0; j < data[i].length; j++) {
+                data[i][j] = flatWeights[idx];
+                momentumData[i][j] = flatMomentum[idx];
+                velocityData[i][j] = flatVelocity[idx];
+                idx++;
+              }
+            }
+          });
+
+        parameterUpdates.push(updatePromise);
+      } else {
+        // 1D parameter
+        const data = param.data as Tensor1d;
+        const gradData = grad as Tensor1d;
+        const momentumData = momentum as Tensor1d;
+        const velocityData = velocity as Tensor1d;
+
+        const flatWeights = new Float32Array(data);
+        const flatGrads = new Float32Array(gradData);
+        const flatMomentum = new Float32Array(momentumData);
+        const flatVelocity = new Float32Array(velocityData);
+
+        // GPU update
+        const updatePromise = this.gpuOps
+          .adamwUpdate(
+            flatWeights,
+            flatGrads,
+            flatMomentum,
+            flatVelocity,
+            beta1,
+            beta2,
+            eps,
+            learningRate,
+            weightDecay,
+            bc1,
+            bc2,
+          )
+          .then(() => {
+            // Copy results back
+            for (let i = 0; i < data.length; i++) {
+              data[i] = flatWeights[i];
+              momentumData[i] = flatMomentum[i];
+              velocityData[i] = flatVelocity[i];
+            }
+          });
+
+        parameterUpdates.push(updatePromise);
+      }
+    }
+
+    // Wait for all GPU updates to complete
+    await Promise.all(parameterUpdates);
 
     return loss || 0;
   }

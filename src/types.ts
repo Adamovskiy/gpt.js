@@ -6,11 +6,15 @@ export interface Parameter {
 }
 
 export interface Trainable {
-  forward(contextTokens: Tensor2d, targets?: Tensor2d): { logits: Tensor3d; loss?: number };
+  forward(contextTokens: Tensor2d, targets?: Tensor2d): Promise<{ logits: Tensor3d; loss?: number }>;
   getParameters(): Parameter[];
-  computeGradients(contextTokens: Tensor2d, targets: Tensor2d): { [paramName: string]: Tensor2d | Tensor1d };
+  computeGradients(
+    contextTokens: Tensor2d,
+    targets: Tensor2d,
+    precomputedLogits?: Tensor3d,
+  ): { [paramName: string]: Tensor2d | Tensor1d };
 }
 
 export interface LanguageModel extends Trainable {
-  generate(idx: Tensor2d, maxNewTokens: number): Tensor2d;
+  generate(idx: Tensor2d, maxNewTokens: number): Promise<Tensor2d>;
 }
