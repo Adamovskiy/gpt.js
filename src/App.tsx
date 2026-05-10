@@ -24,9 +24,9 @@ type AppStep = 'input' | 'tokenizer' | 'model' | 'optimizer' | 'train';
 function App() {
   const [currentStep, setCurrentStep] = useState<AppStep>('input');
   const [lossChartData, setLossChartData] = useState<number[]>([]);
-  const [tokenizer, setTokenizer] = useState<Tokenizer | undefined>();
-  const [model, setModel] = useState<LanguageModel | undefined>();
-  const [optimizer, setOptimizer] = useState<Optimizer | undefined>();
+  const [tokenizer, setTokenizer] = useState<Tokenizer | null>(null);
+  const [model, setModel] = useState<LanguageModel | null>(null);
+  const [optimizer, setOptimizer] = useState<Optimizer | null>();
   const [trainingInProgress, setTrainingInProgress] = useState(false);
   const [iterations, setIterations] = useState(100);
   const [initialString, setInitialString] = useState('');
@@ -46,18 +46,18 @@ function App() {
 
   const handleBackToInput = useCallback(() => {
     setCurrentStep('input');
-    setTokenizer(undefined);
-    setModel(undefined);
-    setOptimizer(undefined);
+    setTokenizer(null);
+    setModel(null);
+    setOptimizer(null);
     setLossChartData([]);
   }, []);
 
   const handleContentLoad = useCallback((selected: SelectedFile | null) => {
     setSelectedFile(selected);
     // Reset tokenizer when content changes
-    setTokenizer(undefined);
-    setModel(undefined);
-    setOptimizer(undefined);
+    setTokenizer(null);
+    setModel(null);
+    setOptimizer(null);
     setLossChartData([]);
     setCurrentStep('input');
   }, []);
@@ -68,9 +68,11 @@ function App() {
     }
   }, [selectedFile]);
 
-  const handleModelComplete = useCallback((newModel: LanguageModel) => {
+  const handleModelComplete = useCallback((newModel: LanguageModel | null) => {
     setModel(newModel);
-    setCurrentStep('optimizer');
+    if (newModel) {
+      setCurrentStep('optimizer');
+    }
   }, []);
 
   const handleBackToModel = useCallback(() => {

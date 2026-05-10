@@ -69,9 +69,12 @@ function CardDescription({ className, ...props }: React.ComponentProps<'div'>) {
 function CardAction({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
-      className={cn(`
+      className={cn(
+        `
         col-start-2 row-span-2 row-start-1 self-start justify-self-end
-      `, className)}
+      `,
+        className,
+      )}
       data-slot="card-action"
       {...props}
     />

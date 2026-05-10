@@ -6,8 +6,10 @@ import type { TokenizerWorkerMessage, TokenizerWorkerResponse } from '@/workers/
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Field, FieldLabel } from '@/components/ui/field.tsx';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.tsx';
 import { BPETokenizer } from '@/llm/tokenizers/BPETokenizer.ts';
 import { CharTokenizer } from '@/llm/tokenizers/CharTokenizer.ts';
 
@@ -135,22 +137,24 @@ export function TokenizerSetup({ fileContent, fileName, onComplete, onBack }: To
 
         <div className="space-y-4">
           <div className="space-y-3">
-            <Label htmlFor="tokenizer-select">Tokenizer Type</Label>
-            <select
-              className="
-                w-full rounded-md border border-input bg-background p-2
-                disabled:opacity-50
-              "
-              disabled={isCreating}
-              id="tokenizer-select"
-              onChange={(e) => {
-                handleSelectType(e.target.value as TokenizerType);
-              }}
-              value={tokenizerType}
-            >
-              <option value="BPE">BPE Tokenizer (Byte Pair Encoding)</option>
-              <option value="Char">Character Tokenizer</option>
-            </select>
+            <Field>
+              <FieldLabel>Tokenizer Type</FieldLabel>
+              <Select
+                disabled={isCreating}
+                onValueChange={(value) => {
+                  handleSelectType(value as TokenizerType);
+                }}
+                value={tokenizerType}
+              >
+                <SelectTrigger className="cursor-pointer">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="BPE">BPE Tokenizer (Byte Pair Encoding)</SelectItem>
+                  <SelectItem value="Char">Character Tokenizer</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
 
             <div className="text-sm text-muted-foreground">
               {tokenizerType === 'BPE' ? (
