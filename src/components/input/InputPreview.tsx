@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
-import { Upload, FileText, Globe } from 'lucide-react';
+import { Upload, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export type InputSource = 'war_and_peace' | 'shakespear' | 'upload';
@@ -11,8 +11,8 @@ export type InputSource = 'war_and_peace' | 'shakespear' | 'upload';
 export interface InputPreviewProps {
   selectedSource: InputSource | undefined;
   onSourceChange: (source: InputSource) => void;
-  fileContent: string;
-  fileName: string;
+  fileContent: string | undefined;
+  fileName: string | undefined;
   onContentLoad: (content: string, fileName: string) => void;
 }
 
@@ -58,11 +58,11 @@ export function InputPreview({
         let name: string;
 
         if (source === 'war_and_peace') {
-          const { default: warAndPeace } = await import('../../war_and_peace.txt?raw');
+          const { default: warAndPeace } = await import('../../data/war_and_peace.txt?raw');
           content = warAndPeace;
           name = 'war_and_peace.txt';
         } else {
-          const { default: shakespear } = await import('../../shakespear.txt?raw');
+          const { default: shakespear } = await import('../../data/shakespear.txt?raw');
           content = shakespear;
           name = 'shakespear.txt';
         }

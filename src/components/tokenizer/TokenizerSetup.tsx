@@ -7,8 +7,8 @@ import { Loader, ChevronRight, ChevronLeft } from 'lucide-react';
 import { BPETokenizer } from '../../llm/tokenizers/BPETokenizer';
 import { CharTokenizer } from '../../llm/tokenizers/CharTokenizer';
 import type { Tokenizer } from '../../llm/types';
-import TokenizerWorker from '../../tokenizer.worker.ts?worker';
-import type { TokenizerWorkerMessage, TokenizerWorkerResponse } from '../../tokenizer.worker.ts';
+import TokenizerWorker from '../../workers/tokenizer.worker.ts?worker';
+import type { TokenizerWorkerMessage, TokenizerWorkerResponse } from '../../workers/tokenizer.worker.ts';
 import { TokenizerDemo } from './TokenizerDemo';
 import { Vocabulary } from './Vocabulary';
 
@@ -250,27 +250,27 @@ export function TokenizerSetup({ fileContent, fileName, onComplete, onBack }: To
                   </div>
                 )}
               </div>
-              
+
               <div className="text-sm text-muted-foreground">
                 {tokenizerType === 'BPE' ? (
                   <p>
-                    <strong>BPE (Byte Pair Encoding):</strong> This tokenizer learned {numMerges} merge operations 
-                    to create a vocabulary of {tokenizer.getVocabSize()} tokens. It combines frequently occurring 
-                    character pairs to create more efficient token representations.
+                    <strong>BPE (Byte Pair Encoding):</strong> This tokenizer learned {numMerges} merge operations to
+                    create a vocabulary of {tokenizer.getVocabSize()} tokens. It combines frequently occurring character
+                    pairs to create more efficient token representations.
                   </p>
                 ) : (
                   <p>
-                    <strong>Character Tokenizer:</strong> This tokenizer uses individual characters as tokens, 
-                    resulting in a vocabulary of {tokenizer.getVocabSize()} unique characters from your input text.
+                    <strong>Character Tokenizer:</strong> This tokenizer uses individual characters as tokens, resulting
+                    in a vocabulary of {tokenizer.getVocabSize()} unique characters from your input text.
                   </p>
                 )}
               </div>
             </div>
           </Card>
-          
+
           <Vocabulary tokenizer={tokenizer} />
           <TokenizerDemo tokenizer={tokenizer} />
-          
+
           <div className="flex justify-between">
             <Button variant="outline" onClick={handleBackToSetup}>
               <ChevronLeft className="w-4 h-4 mr-1" />

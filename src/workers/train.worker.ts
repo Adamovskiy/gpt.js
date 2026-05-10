@@ -1,6 +1,6 @@
 // Simple worker for future GPU operations if needed
 
-import { getBatch } from './llm/sampling.ts';
+import { getBatch } from '../llm/sampling.ts';
 
 self.onmessage = async (event) => {
   const { type, model, tokenizer, optimizer, iterations, trainData } = event.data;

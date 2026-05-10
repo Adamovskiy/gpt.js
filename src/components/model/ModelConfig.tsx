@@ -1,75 +1,78 @@
 import type { LanguageModel } from '../../llm/types.ts';
-import {
-  GPTModel,
-  GPTModelGPU,
-  BigramLanguageModel,
-  BigramLanguageModelSingleHeadAttention,
-  BigramLanguageModelMultiHeadAttention,
-} from '../../llm/models/tfOps.ts';
 import { blockSize } from '../../llm/sampling.ts';
 import { Button } from '../ui/button.tsx';
 import { Badge } from '../ui/badge.tsx';
-import { useState } from 'react';
+import { Card } from '../ui/card.tsx';
+import { Input } from '../ui/input.tsx';
+import { Label } from '../ui/label.tsx';
+import { ChevronLeft, ChevronRight, Loader } from 'lucide-react';
+import { useState, useCallback } from 'react';
+import { BigramLanguageModel } from '../../llm/models/BigramLanguageModel.ts';
+import { BigramLanguageModelMultiHeadAttention } from '../../llm/models/BigramLanguageModelMultiHeadAttention.ts';
+import { BigramLanguageModelSingleHeadAttention } from '../../llm/models/BigramLanguageModelSingleHeadAttention.ts';
+import { GPTModelGPU } from '../../llm/models/gpu/GPTModelGPU.ts';
+import { GPTModel } from '../../llm/models/GPTModel.ts';
 
-export function ModelConfig({
-  vocabSize,
-  model,
-  setModel,
-  onModelChange,
-}: {
+export interface ModelConfigProps {
   vocabSize: number;
-  model: LanguageModel | undefined;
-  setModel: (model: LanguageModel) => void;
-  onModelChange?: () => void;
-}) {
+  onComplete: (model: LanguageModel) => void;
+  onBack: () => void;
+}
+
+export function ModelConfig({ vocabSize, onComplete, onBack }: ModelConfigProps) {
   const [modelType, setModelType] = useState<string>('gpt-cpu');
-  const [isInitializing, setIsInitializing] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [model, setModel] = useState<LanguageModel | undefined>();
 
-  const createModel = async (type: string) => {
-    setIsInitializing(true);
+  // Model parameters with defaults
+  const [embeddingDim, setEmbeddingDim] = useState(32);
+  const [numHeads, setNumHeads] = useState(2);
+  const [numLayers, setNumLayers] = useState(2);
+
+  const createModel = useCallback(async () => {
+    if (isCreating) return;
+
+    setIsCreating(true);
     try {
-      const numberEmbeddingDimensions = 32;
-      const numHeads = 2;
-      const numLayers = 2;
-
       let modelInstance: LanguageModel;
 
-      switch (type) {
+      switch (modelType) {
         case 'bigram':
-          modelInstance = new BigramLanguageModel(vocabSize, numberEmbeddingDimensions, blockSize);
+          modelInstance = new BigramLanguageModel(vocabSize, embeddingDim, blockSize);
           break;
         case 'single-head':
-          modelInstance = new BigramLanguageModelSingleHeadAttention(vocabSize, numberEmbeddingDimensions, blockSize);
+          modelInstance = new BigramLanguageModelSingleHeadAttention(vocabSize, embeddingDim, blockSize);
           break;
         case 'multi-head':
-          modelInstance = new BigramLanguageModelMultiHeadAttention(
-            vocabSize,
-            numberEmbeddingDimensions,
-            blockSize,
-            numHeads,
-          );
+          modelInstance = new BigramLanguageModelMultiHeadAttention(vocabSize, embeddingDim, blockSize, numHeads);
           break;
         case 'gpt-cpu':
-          modelInstance = new GPTModel(vocabSize, numberEmbeddingDimensions, blockSize, numHeads, numLayers);
+          modelInstance = new GPTModel(vocabSize, embeddingDim, blockSize, numHeads, numLayers);
           break;
-        case 'gpt-gpu':
-          const gpuModel = new GPTModelGPU(vocabSize, numberEmbeddingDimensions, blockSize, numHeads, numLayers);
+        case 'gpt-gpu': {
+          const gpuModel = new GPTModelGPU(vocabSize, embeddingDim, blockSize, numHeads, numLayers);
           await gpuModel.initializeGPU();
           modelInstance = gpuModel;
           break;
+        }
         default:
-          throw new Error(`Unknown model type: ${type}`);
+          throw new Error(`Unknown model type: ${modelType}`);
       }
 
       setModel(modelInstance);
-      onModelChange?.(); // Notify parent about model change
     } catch (error) {
       console.error('Failed to create model:', error);
-      alert(`Failed to create ${type} model: ${error.message}`);
+      alert(`Failed to create ${modelType} model: ${error.message}`);
     } finally {
-      setIsInitializing(false);
+      setIsCreating(false);
     }
-  };
+  }, [vocabSize, embeddingDim, numHeads, numLayers, modelType, isCreating]);
+
+  const handleFinish = useCallback(() => {
+    if (model) {
+      onComplete(model);
+    }
+  }, [model, onComplete]);
 
   const modelTypes = [
     { value: 'bigram', label: 'Bigram Language Model', description: 'Simple bigram model with embeddings' },
@@ -79,61 +82,197 @@ export function ModelConfig({
     { value: 'gpt-gpu', label: 'GPT (GPU)', description: 'Full transformer with GPU acceleration (WebGPU)' },
   ];
 
-  return (
-    <div className="space-y-4">
-      <h3 className="text-lg font-semibold">Model Configuration</h3>
-
-      <div className="space-y-4">
-        {/* Model Type Selection */}
-        <div>
-          <label className="text-sm font-medium">Model Type</label>
-          <select
-            value={modelType}
-            onChange={(e) => setModelType(e.target.value)}
-            className="w-full mt-1 p-2 border rounded-md"
-          >
-            {modelTypes.map((type) => (
-              <option key={type.value} value={type.value}>
-                {type.label} - {type.description}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Current Model Info */}
-        {model && (
-          <div className="border p-4 rounded-lg">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-sm font-medium">{(model as any).constructor.name}</span>
-              <Badge variant="outline">{model.getParameters().length} parameters</Badge>
-              {(model as any).isGPU && <Badge variant="secondary">GPU</Badge>}
-            </div>
-            <div className="text-xs text-muted-foreground">
-              {
-                modelTypes.find(
-                  (t) =>
-                    (t.value === 'bigram' && model.constructor.name === 'BigramLanguageModel') ||
-                    (t.value === 'single-head' &&
-                      model.constructor.name === 'BigramLanguageModelSingleHeadAttention') ||
-                    (t.value === 'multi-head' && model.constructor.name === 'BigramLanguageModelMultiHeadAttention') ||
-                    (t.value === 'gpt-cpu' && model.constructor.name === 'GPTModel') ||
-                    (t.value === 'gpt-gpu' && model.constructor.name === 'GPTModelGPU'),
-                )?.description
-              }
+  const renderModelParameters = () => {
+    switch (modelType) {
+      case 'bigram':
+      case 'single-head':
+        return (
+          <div className="space-y-3">
+            <Label>
+              Embedding Dimensions
+              <Input
+                type="number"
+                min="1"
+                max="512"
+                value={embeddingDim}
+                onChange={(e) => setEmbeddingDim(parseInt(e.target.value) || 32)}
+                disabled={isCreating}
+                className="mt-1"
+              />
+            </Label>
+            <div className="text-sm text-muted-foreground">
+              Number of embedding dimensions. Higher values can capture more complex patterns but require more memory.
             </div>
           </div>
+        );
+
+      case 'multi-head': {
+        return (
+          <div className="space-y-3">
+            <Label>
+              Embedding Dimensions
+              <Input
+                type="number"
+                min="1"
+                max="512"
+                value={embeddingDim}
+                onChange={(e) => setEmbeddingDim(parseInt(e.target.value) || 32)}
+                disabled={isCreating}
+                className="mt-1"
+              />
+            </Label>
+            <Label>
+              Number of Attention Heads
+              <Input
+                type="number"
+                min="1"
+                max="16"
+                value={numHeads}
+                onChange={(e) => setNumHeads(parseInt(e.target.value) || 2)}
+                disabled={isCreating}
+                className="mt-1"
+              />
+            </Label>
+            <div className="text-sm text-muted-foreground">
+              Multiple attention heads allow the model to attend to different aspects of the sequence simultaneously.
+            </div>
+          </div>
+        );
+      }
+
+      case 'gpt-cpu':
+      case 'gpt-gpu':
+        return (
+          <div className="space-y-3">
+            <Label>
+              Embedding Dimensions
+              <Input
+                type="number"
+                min="1"
+                max="512"
+                value={embeddingDim}
+                onChange={(e) => setEmbeddingDim(parseInt(e.target.value) || 32)}
+                disabled={isCreating}
+                className="mt-1"
+              />
+            </Label>
+            <Label>
+              Number of Attention Heads
+              <Input
+                type="number"
+                min="1"
+                max="16"
+                value={numHeads}
+                onChange={(e) => setNumHeads(parseInt(e.target.value) || 2)}
+                disabled={isCreating}
+                className="mt-1"
+              />
+            </Label>
+            <Label>
+              Number of Transformer Layers
+              <Input
+                type="number"
+                min="1"
+                max="12"
+                value={numLayers}
+                onChange={(e) => setNumLayers(parseInt(e.target.value) || 2)}
+                disabled={isCreating}
+                className="mt-1"
+              />
+            </Label>
+            <div className="text-sm text-muted-foreground">
+              Full transformer architecture with multiple layers. More layers can learn more complex patterns but are
+              slower to train.
+            </div>
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <Card className="p-6">
+      <div className="space-y-6">
+        <div>
+          <h3 className="text-lg font-semibold">Configure Model</h3>
+          <p className="text-sm text-muted-foreground">Choose the model architecture and configure its parameters</p>
+        </div>
+
+        <div className="space-y-4">
+          <div className="space-y-3">
+            <Label htmlFor="model-type-select">Model Type</Label>
+            <select
+              id="model-type-select"
+              value={modelType}
+              onChange={(e) => setModelType(e.target.value)}
+              disabled={isCreating}
+              className="w-full p-2 border border-input rounded-md bg-background disabled:opacity-50"
+            >
+              {modelTypes.map((type) => (
+                <option key={type.value} value={type.value}>
+                  {type.label}
+                </option>
+              ))}
+            </select>
+
+            <div className="text-sm text-muted-foreground">
+              {modelTypes.find((t) => t.value === modelType)?.description}
+            </div>
+          </div>
+
+          {renderModelParameters()}
+
+          {modelType === 'gpt-gpu' && (
+            <div className="p-3 text-sm text-yellow-800 bg-yellow-50 rounded-md">
+              ⚠️ GPU model requires WebGPU support (Chrome 113+, Edge 113+)
+            </div>
+          )}
+        </div>
+
+        {model && (
+          <Card className="p-4 bg-green-50">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">
+                  {(model as { constructor: { name: string } }).constructor.name}
+                </span>
+                <Badge variant="outline">{model.getParameters().length} parameters</Badge>
+                {(model as { isGPU?: boolean }).isGPU && <Badge variant="secondary">GPU</Badge>}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                Model created successfully with vocabulary size: {vocabSize}
+              </div>
+            </div>
+          </Card>
         )}
 
-        {/* Create Model Button */}
-        <Button onClick={() => createModel(modelType)} disabled={isInitializing} className="w-full">
-          {isInitializing ? 'Creating...' : model ? 'Re-create' : 'Create'} Model
-        </Button>
+        <div className="flex justify-between">
+          <Button variant="outline" onClick={onBack} disabled={isCreating}>
+            <ChevronLeft className="w-4 h-4 mr-1" />
+            Back
+          </Button>
 
-        {/* WebGPU Notice */}
-        {modelType === 'gpt-gpu' && (
-          <p className="text-sm text-muted-foreground">GPU model requires WebGPU support (Chrome 113+, Edge 113+)</p>
-        )}
+          {!model ? (
+            <Button onClick={createModel} disabled={isCreating}>
+              {isCreating ? (
+                <>
+                  <Loader className="w-4 h-4 mr-2 animate-spin" />
+                  Creating Model...
+                </>
+              ) : (
+                <>Create Model</>
+              )}
+            </Button>
+          ) : (
+            <Button onClick={handleFinish}>
+              Next: Create Optimizer
+              <ChevronRight className="w-4 h-4 ml-1" />
+            </Button>
+          )}
+        </div>
       </div>
-    </div>
+    </Card>
   );
 }

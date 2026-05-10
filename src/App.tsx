@@ -1,24 +1,22 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { seed } from './lib/random.ts';
-import { randomOutputLoss } from './llm/models/tfOps.ts';
 import { getBatch } from './llm/sampling.ts';
-import { type Optimizer } from './llm/optimizers/optimizers.ts';
+import { type Optimizer } from './llm/optimizers/utils.ts';
 import { Button } from '@/components/ui/button.tsx';
-import { Loader } from 'lucide-react';
+import { Loader, ChevronLeft } from 'lucide-react';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from './components/ui/chart.tsx';
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
-import { TokenizerDemo } from '@/components/tokenizer/TokenizerDemo.tsx';
-import { Vocabulary } from '@/components/tokenizer/Vocabulary.tsx';
 import { TokenizerSetup } from '@/components/tokenizer/TokenizerSetup.tsx';
 import { ModelConfig } from './components/model/ModelConfig.tsx';
 import type { LanguageModel, Tokenizer } from './llm/types.ts';
 import { Label } from './components/ui/label.tsx';
 import { Input } from './components/ui/input.tsx';
 import { OptimizerConfig } from './components/optimizer/OptimizerConfig.tsx';
-import TrainWorker from './train.worker.ts?worker';
+import TrainWorker from './workers/train.worker.ts?worker';
 import { InputPreview, type InputSource } from './components/input/InputPreview.tsx';
+import { randomOutputLoss } from './llm/models/utils.ts';
 
-type AppStep = 'input' | 'tokenizer' | 'model';
+type AppStep = 'input' | 'tokenizer' | 'model' | 'optimizer' | 'train';
 
 function App() {
   const [currentStep, setCurrentStep] = useState<AppStep>('input');
@@ -70,8 +68,22 @@ function App() {
     }
   }, [fileContent]);
 
-  const handleProceedToModel = useCallback(() => {
+  const handleModelComplete = useCallback((newModel: LanguageModel) => {
+    setModel(newModel);
+    setCurrentStep('optimizer');
+  }, []);
+
+  const handleBackToModel = useCallback(() => {
     setCurrentStep('model');
+  }, []);
+
+  const handleOptimizerComplete = useCallback((newOptimizer: Optimizer) => {
+    setOptimizer(newOptimizer);
+    setCurrentStep('train');
+  }, []);
+
+  const handleBackToOptimizer = useCallback(() => {
+    setCurrentStep('optimizer');
   }, []);
 
   const bufferRef = useRef<number[]>([]);
@@ -128,11 +140,6 @@ function App() {
   const randomOutputLossValue = useMemo(() => {
     return tokenizer ? randomOutputLoss(tokenizer.getVocabSize()) : 0;
   }, [tokenizer]);
-
-  const handleModelChange = useCallback(() => {
-    setLossChartData([]); // Clear chart when model changes
-    setAvgIterationTime(null);
-  }, []);
 
   const trainModel = useCallback(async () => {
     if (!tokenizer || !model || !optimizer) return;
@@ -223,69 +230,80 @@ function App() {
     />
   );
 
-
   const renderModelStep = () => (
-    <div className="space-y-4">
+    <div>
       {tokenizer && (
+        <ModelConfig
+          vocabSize={tokenizer.getVocabSize()}
+          onComplete={handleModelComplete}
+          onBack={() => setCurrentStep('tokenizer')}
+        />
+      )}
+    </div>
+  );
+
+  const renderOptimizerStep = () => (
+    <div>
+      {model && <OptimizerConfig model={model} onComplete={handleOptimizerComplete} onBack={handleBackToModel} />}
+    </div>
+  );
+
+  const renderTrainStep = () => (
+    <div className="space-y-4">
+      <div className="mb-6">
+        <h2 className="text-xl font-bold">Train & Generate</h2>
+        <p className="text-sm text-muted-foreground">Train your model and generate text with it</p>
+      </div>
+
+      {tokenizer && model && optimizer && (
         <>
-          <ModelConfig
-            vocabSize={tokenizer.getVocabSize()}
-            model={model}
-            setModel={setModel}
-            onModelChange={handleModelChange}
-          />
-
-          {model && (
-            <div>
-              <OptimizerConfig
-                optimizer={optimizer}
-                setOptimizer={setOptimizer}
-                model={model}
-                onOptimizerChange={handleModelChange}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Label>
+              Iterations
+              <Input
+                value={iterations}
+                onChange={(e) => setIterations(parseInt(e.target.value))}
+                type={'number'}
+                className="mt-1"
               />
-              {optimizer && (
-                <>
-                  <Label>
-                    Iterations
-                    <Input
-                      value={iterations}
-                      onChange={(e) => setIterations(parseInt(e.target.value))}
-                      type={'number'}
-                    />
-                  </Label>
-                  <div className="flex items-center gap-4">
-                    <Button onClick={() => trainModel()} disabled={trainingInProgress}>
-                      {trainingInProgress && <Loader className="animate-spin" />}Train model
-                    </Button>
-                    {avgIterationTime && (
-                      <span className="text-sm text-muted-foreground">Avg: {avgIterationTime.toFixed(1)}ms/iter</span>
-                    )}
-                  </div>
-                </>
-              )}
-              <div className="space-y-4">
-                <Label>
-                  Initial context
-                  <Input value={initialString} onChange={(e) => setInitialString(e.target.value)} />
-                </Label>
+            </Label>
+            <Label>
+              Initial Context for Generation
+              <Input
+                value={initialString}
+                onChange={(e) => setInitialString(e.target.value)}
+                placeholder="Enter some text to start generation..."
+                className="mt-1"
+              />
+            </Label>
+          </div>
 
-                <Button onClick={() => generate()} disabled={trainingInProgress || !model}>
-                  Generate Text
-                </Button>
+          <div className="flex items-center gap-4">
+            <Button onClick={() => trainModel()} disabled={trainingInProgress}>
+              {trainingInProgress && <Loader className="animate-spin mr-2" />}
+              {trainingInProgress ? 'Training...' : 'Train Model'}
+            </Button>
 
-                {generateOutput && (
-                  <div className="border p-4 rounded-lg">
-                    <div className="text-sm font-medium mb-2">Generated Output:</div>
-                    <code className="text-xs bg-muted p-2 rounded block whitespace-pre-wrap">{generateOutput}</code>
-                  </div>
-                )}
-              </div>
+            <Button onClick={() => generate()} disabled={trainingInProgress || !model} variant="outline">
+              Generate Text
+            </Button>
+
+            {avgIterationTime && (
+              <span className="text-sm text-muted-foreground">Avg: {avgIterationTime.toFixed(1)}ms/iter</span>
+            )}
+          </div>
+
+          {generateOutput && (
+            <div className="border p-4 rounded-lg">
+              <div className="text-sm font-medium mb-2">Generated Output:</div>
+              <code className="text-xs bg-muted p-2 rounded block whitespace-pre-wrap">{generateOutput}</code>
             </div>
           )}
 
           <div className="flex justify-between mb-4">
-            <Button variant="outline" onClick={() => setCurrentStep('tokenizer')}>
-              Back: Change Tokenizer
+            <Button variant="outline" onClick={handleBackToOptimizer}>
+              <ChevronLeft className="w-4 h-4 mr-1" />
+              Back: Change Optimizer
             </Button>
           </div>
 
@@ -327,6 +345,8 @@ function App() {
       {currentStep === 'input' && renderInputStep()}
       {currentStep === 'tokenizer' && renderTokenizerStep()}
       {currentStep === 'model' && renderModelStep()}
+      {currentStep === 'optimizer' && renderOptimizerStep()}
+      {currentStep === 'train' && renderTrainStep()}
     </main>
   );
 }

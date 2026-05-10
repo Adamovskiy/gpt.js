@@ -1,6 +1,6 @@
-import { BPETokenizer } from './llm/tokenizers/BPETokenizer.ts';
-import { CharTokenizer } from './llm/tokenizers/CharTokenizer.ts';
-import type { Tokenizer } from './llm/types.ts';
+import { BPETokenizer } from '../llm/tokenizers/BPETokenizer.ts';
+import { CharTokenizer } from '../llm/tokenizers/CharTokenizer.ts';
+import type { Tokenizer } from '../llm/types.ts';
 
 export interface TokenizerWorkerMessage {
   type: 'create';
