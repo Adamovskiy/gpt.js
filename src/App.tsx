@@ -13,7 +13,7 @@ import { Label } from './components/ui/label.tsx';
 import { Input } from './components/ui/input.tsx';
 import { OptimizerConfig } from './components/optimizer/OptimizerConfig.tsx';
 import TrainWorker from './workers/train.worker.ts?worker';
-import { InputPreview, type InputSource } from './components/input/InputPreview.tsx';
+import { InputConfig, type SelectedFile } from './components/input/InputConfig.tsx';
 import { randomOutputLoss } from './llm/models/utils.ts';
 
 type AppStep = 'input' | 'tokenizer' | 'model' | 'optimizer' | 'train';
@@ -29,7 +29,6 @@ function App() {
   const [initialString, setInitialString] = useState('');
   const [generateOutput, setGenerateOutput] = useState<string>();
   const [avgIterationTime, setAvgIterationTime] = useState<number | null>(null);
-  const [inputSource, setInputSource] = useState<InputSource>();
   const [fileContent, setFileContent] = useState<string>('');
   const [fileName, setFileName] = useState<string>('');
 
@@ -51,7 +50,7 @@ function App() {
     setLossChartData([]);
   }, []);
 
-  const handleContentLoad = useCallback((content: string, name: string) => {
+  const handleContentLoad = useCallback(({ content, name }: SelectedFile) => {
     setFileContent(content);
     setFileName(name);
     // Reset tokenizer when content changes
@@ -206,13 +205,7 @@ function App() {
 
   const renderInputStep = () => (
     <div className="space-y-4">
-      <InputPreview
-        selectedSource={inputSource}
-        onSourceChange={setInputSource}
-        fileContent={fileContent}
-        fileName={fileName}
-        onContentLoad={handleContentLoad}
-      />
+      <InputConfig selectedFile={{ content: fileContent, name: fileName }} onSelectedFileChange={handleContentLoad} />
       {fileContent && (
         <div className="mt-4">
           <Button onClick={handleProceedToTokenizer}>Next: Create Tokenizer</Button>
