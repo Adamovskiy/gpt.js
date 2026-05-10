@@ -1,14 +1,16 @@
+import { useMemo, useState } from 'react';
+
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
-import { useMemo, useState } from 'react';
+
 import type { Tokenizer } from '../../llm/types.ts';
 
 function parseTokenInput(input: string): {
-  tokens: number[];
   error: string | null;
+  tokens: number[];
 } {
   const trimmed = input.trim();
 
@@ -60,21 +62,23 @@ export function TokenizerDemo({ tokenizer }: { tokenizer: Tokenizer }) {
       </CardHeader>
 
       <CardContent>
-        <Tabs defaultValue="encode" className="w-full">
+        <Tabs className="w-full" defaultValue="encode">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="encode">Encode</TabsTrigger>
             <TabsTrigger value="decode">Decode</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="encode" className="mt-4 space-y-4">
+          <TabsContent className="mt-4 space-y-4" value="encode">
             <div className="space-y-2">
               <Label htmlFor="tokenizer-text">Text</Label>
               <Textarea
-                id="tokenizer-text"
-                value={text}
-                onChange={(event) => setText(event.target.value)}
-                placeholder="Enter text to tokenize..."
                 className="min-h-28 resize-y font-mono"
+                id="tokenizer-text"
+                onChange={(event) => {
+                  setText(event.target.value);
+                }}
+                placeholder="Enter text to tokenize..."
+                value={text}
               />
             </div>
 
@@ -89,7 +93,7 @@ export function TokenizerDemo({ tokenizer }: { tokenizer: Tokenizer }) {
                   <div className="flex flex-wrap gap-1.5">
                     [
                     {encodedTokens.map((token, index) => (
-                      <Badge key={`${index}-${token}`} variant="outline" className="font-mono">
+                      <Badge className="font-mono" key={`${index}-${token}`} variant="outline">
                         {token}
                       </Badge>
                     ))}
@@ -102,15 +106,17 @@ export function TokenizerDemo({ tokenizer }: { tokenizer: Tokenizer }) {
             </div>
           </TabsContent>
 
-          <TabsContent value="decode" className="mt-4 space-y-4">
+          <TabsContent className="mt-4 space-y-4" value="decode">
             <div className="space-y-2">
               <Label htmlFor="tokenizer-tokens">Token ids</Label>
               <Textarea
-                id="tokenizer-tokens"
-                value={tokenInput}
-                onChange={(event) => setTokenInput(event.target.value)}
-                placeholder="Example: 12 45 78 or [12, 45, 78]"
                 className="min-h-28 resize-y font-mono"
+                id="tokenizer-tokens"
+                onChange={(event) => {
+                  setTokenInput(event.target.value);
+                }}
+                placeholder="Example: 12 45 78 or [12, 45, 78]"
+                value={tokenInput}
               />
               {parsedTokenInput.error && <p className="text-sm text-destructive">{parsedTokenInput.error}</p>}
             </div>
@@ -121,7 +127,12 @@ export function TokenizerDemo({ tokenizer }: { tokenizer: Tokenizer }) {
                 <Badge variant="secondary">{parsedTokenInput.tokens.length} tokens</Badge>
               </div>
 
-              <div className="min-h-16 whitespace-pre-wrap rounded-md border bg-muted/30 p-3 font-mono text-sm">
+              <div
+                className="
+                  min-h-16 rounded-md border bg-muted/30 p-3 font-mono text-sm
+                  whitespace-pre-wrap
+                "
+              >
                 {decodedText || <span className="text-muted-foreground">No decoded text.</span>}
               </div>
             </div>

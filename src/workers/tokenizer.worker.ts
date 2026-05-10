@@ -1,6 +1,7 @@
+import type { Tokenizer } from '../llm/types.ts';
+
 import { BPETokenizer } from '../llm/tokenizers/BPETokenizer.ts';
 import { CharTokenizer } from '../llm/tokenizers/CharTokenizer.ts';
-import type { Tokenizer } from '../llm/types.ts';
 
 export interface TokenizerWorkerMessage {
   type: 'create';
@@ -13,11 +14,11 @@ export interface TokenizerWorkerResponse {
   type: 'progress' | 'complete' | 'error';
   progress?: number;
   tokenizer?: {
+    // We'll serialize the tokenizer data instead of the class instance
+    data: { fileContent: string; numMerges?: number };
     type: string;
     vocab: string[];
     vocabSize: number;
-    // We'll serialize the tokenizer data instead of the class instance
-    data: { fileContent: string; numMerges?: number };
   };
   error?: string;
 }
@@ -31,16 +32,16 @@ self.onmessage = async (event: MessageEvent<TokenizerWorkerMessage>) => {
 
       if (tokenizerType === 'BPE') {
         // Create BPE tokenizer with progress updates
-        self.postMessage({ type: 'progress', progress: 10 } as TokenizerWorkerResponse);
+        self.postMessage({ type: 'progress', progress: 10 });
 
         tokenizer = new BPETokenizer(fileContent, numMerges || 50);
 
-        self.postMessage({ type: 'progress', progress: 100 } as TokenizerWorkerResponse);
+        self.postMessage({ type: 'progress', progress: 100 });
       } else {
         // CharTokenizer is fast, no need for progress
-        self.postMessage({ type: 'progress', progress: 50 } as TokenizerWorkerResponse);
+        self.postMessage({ type: 'progress', progress: 50 });
         tokenizer = new CharTokenizer(fileContent);
-        self.postMessage({ type: 'progress', progress: 100 } as TokenizerWorkerResponse);
+        self.postMessage({ type: 'progress', progress: 100 });
       }
 
       // Send the completed tokenizer data
@@ -60,12 +61,12 @@ self.onmessage = async (event: MessageEvent<TokenizerWorkerMessage>) => {
                   fileContent,
                 },
         },
-      } as TokenizerWorkerResponse);
+      });
     } catch (error) {
       self.postMessage({
         type: 'error',
         error: error instanceof Error ? error.message : 'Unknown error',
-      } as TokenizerWorkerResponse);
+      });
     }
   }
 };

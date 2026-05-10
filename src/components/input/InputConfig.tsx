@@ -1,25 +1,27 @@
+import { FileText, Upload } from 'lucide-react';
 import { type ChangeEvent, useCallback, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+
+import { cn } from '@/lib/utils';
+
 import { Button } from '../ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
-import { FileText, Upload } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { InputPreview } from './InputPreview.tsx';
 
 type InputSource = 'war_and_peace' | 'shakespear' | 'upload';
 
-export type SelectedFile = {
+export interface SelectedFile {
   content: string;
   name: string;
-};
+}
 
 export function InputConfig({
   selectedFile,
   onSelectedFileChange,
 }: {
-  selectedFile: SelectedFile | undefined;
   onSelectedFileChange: (selectedFile: SelectedFile) => void;
+  selectedFile: SelectedFile | undefined;
 }) {
   const [inputSource, setInputSource] = useState<InputSource>();
 
@@ -101,15 +103,20 @@ export function InputConfig({
       <CardContent className="space-y-4">
         <div className="space-y-3">
           <Label className="text-sm font-medium">Choose input source:</Label>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+          <div
+            className="
+              grid grid-cols-1 gap-2
+              sm:grid-cols-3
+            "
+          >
             <Button
-              variant={inputSource === 'war_and_peace' ? 'default' : 'outline'}
-              onClick={() => handlePresetFileUpload('war_and_peace')}
-              disabled={isLoading}
               className={cn(
-                'flex items-center gap-2 h-auto p-3 text-left justify-start',
+                'flex h-auto items-center justify-start gap-2 p-3 text-left',
                 inputSource === 'war_and_peace' && 'ring-2 ring-primary',
               )}
+              disabled={isLoading}
+              onClick={() => handlePresetFileUpload('war_and_peace')}
+              variant={inputSource === 'war_and_peace' ? 'default' : 'outline'}
             >
               <FileText className="size-4" />
               <div className="flex flex-col">
@@ -119,13 +126,13 @@ export function InputConfig({
             </Button>
 
             <Button
-              variant={inputSource === 'shakespear' ? 'default' : 'outline'}
-              onClick={() => handlePresetFileUpload('shakespear')}
-              disabled={isLoading}
               className={cn(
-                'flex items-center gap-2 h-auto p-3 text-left justify-start',
+                'flex h-auto items-center justify-start gap-2 p-3 text-left',
                 inputSource === 'shakespear' && 'ring-2 ring-primary',
               )}
+              disabled={isLoading}
+              onClick={() => handlePresetFileUpload('shakespear')}
+              variant={inputSource === 'shakespear' ? 'default' : 'outline'}
             >
               <FileText className="size-4" />
               <div className="flex flex-col">
@@ -135,13 +142,15 @@ export function InputConfig({
             </Button>
 
             <Button
-              variant={inputSource === 'upload' ? 'default' : 'outline'}
-              onClick={() => selectInputSource('upload')}
-              disabled={isLoading}
               className={cn(
-                'flex items-center gap-2 h-auto p-3 text-left justify-start',
+                'flex h-auto items-center justify-start gap-2 p-3 text-left',
                 inputSource === 'upload' && 'ring-2 ring-primary',
               )}
+              disabled={isLoading}
+              onClick={() => {
+                selectInputSource('upload');
+              }}
+              variant={inputSource === 'upload' ? 'default' : 'outline'}
             >
               <Upload className="size-4" />
               <div className="flex flex-col">
@@ -153,22 +162,27 @@ export function InputConfig({
         </div>
 
         {inputSource === 'upload' && (
-          <div className="space-y-2 p-4 border-2 border-dashed border-muted-foreground/25 rounded-lg">
-            <Label htmlFor="file-upload" className="text-sm font-medium">
+          <div
+            className="
+              space-y-2 rounded-lg border-2 border-dashed
+              border-muted-foreground/25 p-4
+            "
+          >
+            <Label className="text-sm font-medium" htmlFor="file-upload">
               Select .txt file:
             </Label>
             <Input
-              id="file-upload"
-              type="file"
               accept=".txt"
-              onChange={handleCustomFileUpload}
-              disabled={isLoading}
               className="cursor-pointer"
+              disabled={isLoading}
+              id="file-upload"
+              onChange={handleCustomFileUpload}
+              type="file"
             />
           </div>
         )}
 
-        {selectedFile && <InputPreview fileName={selectedFile.name} fileContent={selectedFile.content} />}
+        {selectedFile && <InputPreview fileContent={selectedFile.content} fileName={selectedFile.name} />}
 
         {isLoading && <div className="text-sm text-muted-foreground">Loading file content...</div>}
       </CardContent>

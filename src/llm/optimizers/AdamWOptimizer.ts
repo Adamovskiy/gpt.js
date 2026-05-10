@@ -1,29 +1,30 @@
-import { softmax, type Tensor1d, type Tensor2d } from '../tensorOps.ts';
 import type { Model, Optimizer } from './utils.ts';
 
-export class AdamWOptimizer implements Optimizer {
-  private readonly embeddingMomentum: Tensor2d;
-  private readonly embeddingVelocity: Tensor2d;
+import { softmax, type Tensor1d, type Tensor2d } from '../tensorOps.ts';
 
-  private readonly weightsMomentum: Tensor2d;
-  private readonly weightsVelocity: Tensor2d;
+export class AdamWOptimizer implements Optimizer {
+  private readonly beta1: number;
+  private readonly beta2: number;
 
   private readonly biasMomentum: Tensor1d;
   private readonly biasVelocity: Tensor1d;
 
-  private stepCount = 0;
+  private readonly embeddingMomentum: Tensor2d;
+  private readonly embeddingVelocity: Tensor2d;
+
+  private readonly eps: number;
 
   private readonly learningRate: number;
 
   private readonly model: Model;
 
-  private readonly beta1: number;
-
-  private readonly beta2: number;
-
-  private readonly eps: number;
+  private stepCount = 0;
 
   private readonly weightDecay: number;
+
+  private readonly weightsMomentum: Tensor2d;
+
+  private readonly weightsVelocity: Tensor2d;
 
   constructor(model: Model, learningRate: number, beta1: number, beta2: number, eps: number, weightDecay: number) {
     this.weightDecay = weightDecay;

@@ -1,4 +1,6 @@
 import type { LanguageModel, Parameter } from '../types.ts';
+
+import { random } from '../../lib/random.ts';
 import {
   matrixMultiply,
   softmax,
@@ -11,15 +13,14 @@ import {
 } from '../tensorOps.ts';
 import { Head } from './Head.ts';
 import { Linear } from './Linear.ts';
-import { random } from '../../lib/random.ts';
 import { concatBatched, crossEntropy, sampleMultinomial, softmaxBatched } from './utils.ts';
 
 export class BigramLanguageModelSingleHeadAttention implements LanguageModel {
-  readonly tokenEmbeddingTable: Tensor2d; // vocabSize x numberEmbeddingDimensions
+  readonly contextSize: number;
+  readonly languageModelingHead: Linear; // Transforms attended embeddings to logits
   readonly positionEmbeddingTable: Tensor2d; // blockSize x numberEmbeddingDimensions
   readonly selfAttention: Head; // single self-attention head
-  readonly languageModelingHead: Linear; // Transforms attended embeddings to logits
-  readonly contextSize: number;
+  readonly tokenEmbeddingTable: Tensor2d; // vocabSize x numberEmbeddingDimensions
 
   get isGPU(): boolean {
     return false;
@@ -36,6 +37,66 @@ export class BigramLanguageModelSingleHeadAttention implements LanguageModel {
 
     this.selfAttention = new Head(numberEmbeddingDimensions, numberEmbeddingDimensions);
     this.languageModelingHead = new Linear(numberEmbeddingDimensions, vocabSize);
+  }
+
+  computeGradients(contextTokens: Tensor2d, targets: Tensor2d): Record<string, Tensor2d | Tensor1d> {
+    // Simple gradient computation - similar to bigram but with attention
+    const B = contextTokens.length;
+    const T = contextTokens[0].length;
+    const scale = 1 / (B * T);
+
+    const gradients: Record<string, Tensor2d | Tensor1d> = {
+      tokenEmbedding: this.tokenEmbeddingTable.map((row) => new Array<number>(row.length).fill(0)),
+      positionEmbedding: this.positionEmbeddingTable.map((row) => new Array<number>(row.length).fill(0)),
+      selfAttn_key: this.selfAttention.key.weights.map((row) => new Array<number>(row.length).fill(0)),
+      selfAttn_query: this.selfAttention.query.weights.map((row) => new Array<number>(row.length).fill(0)),
+      selfAttn_value: this.selfAttention.value.weights.map((row) => new Array<number>(row.length).fill(0)),
+      lmWeights: this.languageModelingHead.weights.map((row) => new Array<number>(row.length).fill(0)),
+      lmBias: new Array<number>(this.languageModelingHead.bias.length).fill(0),
+    };
+
+    for (let b = 0; b < B; b++) {
+      // Forward pass to get intermediates
+      const tokenEmbeddings = contextTokens[b].map((token) => this.tokenEmbeddingTable[token]);
+      const positionEmbeddings = contextTokens[b].map((_, i) => this.positionEmbeddingTable[i]);
+      const embeddingsSum = tokenEmbeddings.map((tokenEmb, i) => sum1d(tokenEmb, positionEmbeddings[i]));
+      const attended = this.selfAttention.forward([embeddingsSum])[0];
+      const logits = attended.map((emb) => this.languageModelingHead.forward(emb));
+
+      const dLogits = logits.map((tokenLogits, t) => {
+        const probs = softmax(tokenLogits);
+        probs[targets[b][t]] -= 1;
+        return probs.map((v) => v * scale);
+      });
+
+      // Backward through language modeling head
+      for (let t = 0; t < T; t++) {
+        for (let i = 0; i < attended[t].length; i++) {
+          for (let j = 0; j < dLogits[t].length; j++) {
+            (gradients.lmWeights as Tensor2d)[i][j] += attended[t][i] * dLogits[t][j];
+          }
+        }
+        for (let j = 0; j < dLogits[t].length; j++) {
+          (gradients.lmBias as Tensor1d)[j] += dLogits[t][j];
+        }
+      }
+
+      // Simple approximation for attention gradients (could be more accurate)
+      const dAttended = dLogits.map(
+        (dLogit) => matrixMultiply([dLogit], transpose(this.languageModelingHead.weights))[0],
+      );
+
+      // Simplified gradient computation for embeddings
+      for (let t = 0; t < T; t++) {
+        const token = contextTokens[b][t];
+        for (let i = 0; i < dAttended[t].length; i++) {
+          (gradients.tokenEmbedding as Tensor2d)[token][i] += dAttended[t][i] * 0.5; // simplified
+          (gradients.positionEmbedding as Tensor2d)[t][i] += dAttended[t][i] * 0.5;
+        }
+      }
+    }
+
+    return gradients;
   }
 
   async forward(
@@ -84,70 +145,5 @@ export class BigramLanguageModelSingleHeadAttention implements LanguageModel {
       { name: 'lmWeights', data: this.languageModelingHead.weights },
       { name: 'lmBias', data: this.languageModelingHead.bias },
     ];
-  }
-
-  computeGradients(
-    contextTokens: Tensor2d,
-    targets: Tensor2d,
-  ): {
-    [paramName: string]: Tensor2d | Tensor1d;
-  } {
-    // Simple gradient computation - similar to bigram but with attention
-    const B = contextTokens.length;
-    const T = contextTokens[0].length;
-    const scale = 1 / (B * T);
-
-    const gradients: { [paramName: string]: Tensor2d | Tensor1d } = {
-      tokenEmbedding: this.tokenEmbeddingTable.map((row) => new Array<number>(row.length).fill(0)),
-      positionEmbedding: this.positionEmbeddingTable.map((row) => new Array<number>(row.length).fill(0)),
-      selfAttn_key: this.selfAttention.key.weights.map((row) => new Array<number>(row.length).fill(0)),
-      selfAttn_query: this.selfAttention.query.weights.map((row) => new Array<number>(row.length).fill(0)),
-      selfAttn_value: this.selfAttention.value.weights.map((row) => new Array<number>(row.length).fill(0)),
-      lmWeights: this.languageModelingHead.weights.map((row) => new Array<number>(row.length).fill(0)),
-      lmBias: new Array<number>(this.languageModelingHead.bias.length).fill(0),
-    };
-
-    for (let b = 0; b < B; b++) {
-      // Forward pass to get intermediates
-      const tokenEmbeddings = contextTokens[b].map((token) => this.tokenEmbeddingTable[token]);
-      const positionEmbeddings = contextTokens[b].map((_, i) => this.positionEmbeddingTable[i]);
-      const embeddingsSum = tokenEmbeddings.map((tokenEmb, i) => sum1d(tokenEmb, positionEmbeddings[i]));
-      const attended = this.selfAttention.forward([embeddingsSum])[0];
-      const logits = attended.map((emb) => this.languageModelingHead.forward(emb));
-
-      const dLogits = logits.map((tokenLogits, t) => {
-        const probs = softmax(tokenLogits);
-        probs[targets[b][t]] -= 1;
-        return probs.map((v) => v * scale);
-      });
-
-      // Backward through language modeling head
-      for (let t = 0; t < T; t++) {
-        for (let i = 0; i < attended[t].length; i++) {
-          for (let j = 0; j < dLogits[t].length; j++) {
-            (gradients['lmWeights'] as Tensor2d)[i][j] += attended[t][i] * dLogits[t][j];
-          }
-        }
-        for (let j = 0; j < dLogits[t].length; j++) {
-          (gradients['lmBias'] as Tensor1d)[j] += dLogits[t][j];
-        }
-      }
-
-      // Simple approximation for attention gradients (could be more accurate)
-      const dAttended = dLogits.map(
-        (dLogit) => matrixMultiply([dLogit], transpose(this.languageModelingHead.weights))[0],
-      );
-
-      // Simplified gradient computation for embeddings
-      for (let t = 0; t < T; t++) {
-        const token = contextTokens[b][t];
-        for (let i = 0; i < dAttended[t].length; i++) {
-          (gradients['tokenEmbedding'] as Tensor2d)[token][i] += dAttended[t][i] * 0.5; // simplified
-          (gradients['positionEmbedding'] as Tensor2d)[t][i] += dAttended[t][i] * 0.5;
-        }
-      }
-    }
-
-    return gradients;
   }
 }

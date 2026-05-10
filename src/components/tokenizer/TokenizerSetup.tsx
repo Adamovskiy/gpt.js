@@ -1,14 +1,17 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { ChevronLeft, ChevronRight, Loader } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader, ChevronRight, ChevronLeft } from 'lucide-react';
+
+import type { Tokenizer } from '../../llm/types';
+import type { TokenizerWorkerMessage, TokenizerWorkerResponse } from '../../workers/tokenizer.worker.ts';
+
 import { BPETokenizer } from '../../llm/tokenizers/BPETokenizer';
 import { CharTokenizer } from '../../llm/tokenizers/CharTokenizer';
-import type { Tokenizer } from '../../llm/types';
 import TokenizerWorker from '../../workers/tokenizer.worker.ts?worker';
-import type { TokenizerWorkerMessage, TokenizerWorkerResponse } from '../../workers/tokenizer.worker.ts';
 import { TokenizerDemo } from './TokenizerDemo';
 import { Vocabulary } from './Vocabulary';
 
@@ -135,11 +138,16 @@ export function TokenizerSetup({ fileContent, fileName, onComplete, onBack }: To
           <div className="space-y-3">
             <Label htmlFor="tokenizer-select">Tokenizer Type</Label>
             <select
-              id="tokenizer-select"
-              value={tokenizerType}
-              onChange={(e) => handleSelectType(e.target.value as TokenizerType)}
+              className="
+                w-full rounded-md border border-input bg-background p-2
+                disabled:opacity-50
+              "
               disabled={isCreating}
-              className="w-full p-2 border border-input rounded-md bg-background disabled:opacity-50"
+              id="tokenizer-select"
+              onChange={(e) => {
+                handleSelectType(e.target.value as TokenizerType);
+              }}
+              value={tokenizerType}
             >
               <option value="BPE">BPE Tokenizer (Byte Pair Encoding)</option>
               <option value="Char">Character Tokenizer</option>
@@ -165,14 +173,16 @@ export function TokenizerSetup({ fileContent, fileName, onComplete, onBack }: To
               <Label htmlFor="num-merges">
                 Number of Merges
                 <Input
-                  id="num-merges"
-                  type="number"
-                  min="1"
-                  max="1000"
-                  value={numMerges}
-                  onChange={(e) => setNumMerges(parseInt(e.target.value) || 50)}
-                  disabled={isCreating}
                   className="mt-1"
+                  disabled={isCreating}
+                  id="num-merges"
+                  max="1000"
+                  min="1"
+                  onChange={(e) => {
+                    setNumMerges(parseInt(e.target.value) || 50);
+                  }}
+                  type="number"
+                  value={numMerges}
                 />
               </Label>
               <div className="text-sm text-muted-foreground">
@@ -186,39 +196,49 @@ export function TokenizerSetup({ fileContent, fileName, onComplete, onBack }: To
         {isCreating && (
           <div className="space-y-3">
             <div className="flex items-center gap-2">
-              <Loader className="w-4 h-4 animate-spin" />
+              <Loader className="size-4 animate-spin" />
               <span className="text-sm">
                 {tokenizerType === 'BPE' ? 'Learning byte pair encodings...' : 'Processing character vocabulary...'} (
                 {progress.toFixed(0)}%)
               </span>
             </div>
 
-            <div className="w-full bg-muted rounded-full h-2">
+            <div className="h-2 w-full rounded-full bg-muted">
               <div
-                className="bg-primary h-2 rounded-full transition-all duration-300"
+                className="
+                  h-2 rounded-full bg-primary transition-all duration-300
+                "
                 style={{ width: `${progress}%` }}
               />
             </div>
           </div>
         )}
 
-        {error && <div className="p-3 text-sm text-destructive bg-destructive/10 rounded-md">Error: {error}</div>}
+        {error && (
+          <div
+            className="
+              rounded-md bg-destructive/10 p-3 text-sm text-destructive
+            "
+          >
+            Error: {error}
+          </div>
+        )}
 
         <div className="flex justify-between">
-          <Button variant="outline" onClick={onBack} disabled={isCreating}>
-            <ChevronLeft className="w-4 h-4 mr-1" />
+          <Button disabled={isCreating} onClick={onBack} variant="outline">
+            <ChevronLeft className="mr-1 size-4" />
             Back
           </Button>
-          <Button onClick={createTokenizer} disabled={isCreating}>
+          <Button disabled={isCreating} onClick={createTokenizer}>
             {isCreating ? (
               <>
-                <Loader className="w-4 h-4 mr-2 animate-spin" />
+                <Loader className="mr-2 size-4 animate-spin" />
                 Creating...
               </>
             ) : (
               <>
                 Create Tokenizer
-                <ChevronRight className="w-4 h-4 ml-1" />
+                <ChevronRight className="ml-1 size-4" />
               </>
             )}
           </Button>
@@ -272,13 +292,13 @@ export function TokenizerSetup({ fileContent, fileName, onComplete, onBack }: To
           <TokenizerDemo tokenizer={tokenizer} />
 
           <div className="flex justify-between">
-            <Button variant="outline" onClick={handleBackToSetup}>
-              <ChevronLeft className="w-4 h-4 mr-1" />
+            <Button onClick={handleBackToSetup} variant="outline">
+              <ChevronLeft className="mr-1 size-4" />
               Back: Change Tokenizer
             </Button>
             <Button onClick={handleFinish}>
               Next: Configure Model
-              <ChevronRight className="w-4 h-4 ml-1" />
+              <ChevronRight className="ml-1 size-4" />
             </Button>
           </div>
         </>
@@ -287,10 +307,10 @@ export function TokenizerSetup({ fileContent, fileName, onComplete, onBack }: To
   );
 
   switch (currentStep) {
-    case 'setup':
-      return renderSetupStep();
     case 'introspect':
       return renderIntrospectStep();
+    case 'setup':
+      return renderSetupStep();
     default:
       return null;
   }

@@ -1,4 +1,3 @@
-import { Linear } from './Linear.ts';
 import {
   matrixMultiply,
   softmax,
@@ -8,13 +7,14 @@ import {
   type Tensor3d,
   transpose,
 } from '../tensorOps.ts';
+import { Linear } from './Linear.ts';
 
 export class Head {
+  readonly headSize: number;
   readonly key: Linear; // projects embedding -> headSize (no bias, as in nanoGPT)
   readonly query: Linear;
-  readonly value: Linear;
 
-  readonly headSize: number;
+  readonly value: Linear;
 
   constructor(embeddingSize: number, headSize: number) {
     this.headSize = headSize;
@@ -28,10 +28,10 @@ export class Head {
     x: Tensor2d,
     dOut: Tensor2d,
   ): {
-    dX: Tensor2d;
     dWk: Tensor2d;
     dWq: Tensor2d;
     dWv: Tensor2d;
+    dX: Tensor2d;
   } {
     const scale = Math.pow(x[0].length, -0.5);
 

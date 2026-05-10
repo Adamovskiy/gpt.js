@@ -1,20 +1,23 @@
+import { ChevronLeft, Loader } from 'lucide-react';
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
-import { seed } from './lib/random.ts';
-import { getBatch } from './llm/sampling.ts';
-import { type Optimizer } from './llm/optimizers/utils.ts';
-import { Button } from '@/components/ui/button.tsx';
-import { Loader, ChevronLeft } from 'lucide-react';
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from './components/ui/chart.tsx';
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
+
 import { TokenizerSetup } from '@/components/tokenizer/TokenizerSetup.tsx';
-import { ModelConfig } from './components/model/ModelConfig.tsx';
+import { Button } from '@/components/ui/button.tsx';
+
 import type { LanguageModel, Tokenizer } from './llm/types.ts';
-import { Label } from './components/ui/label.tsx';
-import { Input } from './components/ui/input.tsx';
-import { OptimizerConfig } from './components/optimizer/OptimizerConfig.tsx';
-import TrainWorker from './workers/train.worker.ts?worker';
+
 import { InputConfig, type SelectedFile } from './components/input/InputConfig.tsx';
+import { ModelConfig } from './components/model/ModelConfig.tsx';
+import { OptimizerConfig } from './components/optimizer/OptimizerConfig.tsx';
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from './components/ui/chart.tsx';
+import { Input } from './components/ui/input.tsx';
+import { Label } from './components/ui/label.tsx';
+import { seed } from './lib/random.ts';
 import { randomOutputLoss } from './llm/models/utils.ts';
+import { type Optimizer } from './llm/optimizers/utils.ts';
+import { getBatch } from './llm/sampling.ts';
+import TrainWorker from './workers/train.worker.ts?worker';
 
 type AppStep = 'input' | 'tokenizer' | 'model' | 'optimizer' | 'train';
 
@@ -205,7 +208,7 @@ function App() {
 
   const renderInputStep = () => (
     <div className="space-y-4">
-      <InputConfig selectedFile={{ content: fileContent, name: fileName }} onSelectedFileChange={handleContentLoad} />
+      <InputConfig onSelectedFileChange={handleContentLoad} selectedFile={{ content: fileContent, name: fileName }} />
       {fileContent && (
         <div className="mt-4">
           <Button onClick={handleProceedToTokenizer}>Next: Create Tokenizer</Button>
@@ -218,8 +221,8 @@ function App() {
     <TokenizerSetup
       fileContent={fileContent}
       fileName={fileName}
-      onComplete={handleTokenizerComplete}
       onBack={handleBackToInput}
+      onComplete={handleTokenizerComplete}
     />
   );
 
@@ -227,9 +230,11 @@ function App() {
     <div>
       {tokenizer && (
         <ModelConfig
-          vocabSize={tokenizer.getVocabSize()}
+          onBack={() => {
+            setCurrentStep('tokenizer');
+          }}
           onComplete={handleModelComplete}
-          onBack={() => setCurrentStep('tokenizer')}
+          vocabSize={tokenizer.getVocabSize()}
         />
       )}
     </div>
@@ -237,7 +242,7 @@ function App() {
 
   const renderOptimizerStep = () => (
     <div>
-      {model && <OptimizerConfig model={model} onComplete={handleOptimizerComplete} onBack={handleBackToModel} />}
+      {model && <OptimizerConfig model={model} onBack={handleBackToModel} onComplete={handleOptimizerComplete} />}
     </div>
   );
 
@@ -250,34 +255,43 @@ function App() {
 
       {tokenizer && model && optimizer && (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div
+            className="
+              grid grid-cols-1 gap-4
+              md:grid-cols-2
+            "
+          >
             <Label>
               Iterations
               <Input
-                value={iterations}
-                onChange={(e) => setIterations(parseInt(e.target.value))}
-                type={'number'}
                 className="mt-1"
+                onChange={(e) => {
+                  setIterations(parseInt(e.target.value));
+                }}
+                type={'number'}
+                value={iterations}
               />
             </Label>
             <Label>
               Initial Context for Generation
               <Input
-                value={initialString}
-                onChange={(e) => setInitialString(e.target.value)}
-                placeholder="Enter some text to start generation..."
                 className="mt-1"
+                onChange={(e) => {
+                  setInitialString(e.target.value);
+                }}
+                placeholder="Enter some text to start generation..."
+                value={initialString}
               />
             </Label>
           </div>
 
           <div className="flex items-center gap-4">
-            <Button onClick={() => trainModel()} disabled={trainingInProgress}>
-              {trainingInProgress && <Loader className="animate-spin mr-2" />}
+            <Button disabled={trainingInProgress} onClick={() => void trainModel()}>
+              {trainingInProgress && <Loader className="mr-2 animate-spin" />}
               {trainingInProgress ? 'Training...' : 'Train Model'}
             </Button>
 
-            <Button onClick={() => generate()} disabled={trainingInProgress || !model} variant="outline">
+            <Button disabled={trainingInProgress || !model} onClick={() => void generate()} variant="outline">
               Generate Text
             </Button>
 
@@ -287,15 +301,21 @@ function App() {
           </div>
 
           {generateOutput && (
-            <div className="border p-4 rounded-lg">
-              <div className="text-sm font-medium mb-2">Generated Output:</div>
-              <code className="text-xs bg-muted p-2 rounded block whitespace-pre-wrap">{generateOutput}</code>
+            <div className="rounded-lg border p-4">
+              <div className="mb-2 text-sm font-medium">Generated Output:</div>
+              <code
+                className="
+                  block rounded-sm bg-muted p-2 text-xs whitespace-pre-wrap
+                "
+              >
+                {generateOutput}
+              </code>
             </div>
           )}
 
-          <div className="flex justify-between mb-4">
-            <Button variant="outline" onClick={handleBackToOptimizer}>
-              <ChevronLeft className="w-4 h-4 mr-1" />
+          <div className="mb-4 flex justify-between">
+            <Button onClick={handleBackToOptimizer} variant="outline">
+              <ChevronLeft className="mr-1 size-4" />
               Back: Change Optimizer
             </Button>
           </div>
@@ -315,17 +335,17 @@ function App() {
             <LineChart
               accessibilityLayer
               data={deferredPoints.map((loss, iteration) => ({
-                iteration: iteration,
-                loss: loss,
+                iteration,
+                loss,
                 randomOutput: randomOutputLossValue,
               }))}
             >
               <CartesianGrid vertical={false} />
-              <XAxis dataKey="iteration" tickLine={false} axisLine={false} tickMargin={8} max={iterations} min={0} />
-              <YAxis min={0} max={randomOutputLossValue * 1.2} />
-              <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
-              <Line dataKey="loss" type="linear" stroke="var(--chart-1)" strokeWidth={1} dot={false} />
-              <Line dataKey="randomOutput" type="linear" stroke="var(--chart-2)" strokeWidth={1} dot={false} />
+              <XAxis axisLine={false} dataKey="iteration" max={iterations} min={0} tickLine={false} tickMargin={8} />
+              <YAxis max={randomOutputLossValue * 1.2} min={0} />
+              <ChartTooltip content={<ChartTooltipContent hideLabel />} cursor={false} />
+              <Line dataKey="loss" dot={false} stroke="var(--chart-1)" strokeWidth={1} type="linear" />
+              <Line dataKey="randomOutput" dot={false} stroke="var(--chart-2)" strokeWidth={1} type="linear" />
             </LineChart>
           </ChartContainer>
         </>
@@ -334,7 +354,7 @@ function App() {
   );
 
   return (
-    <main className="max-w-3xl mx-auto px-2 py-4 flex flex-col gap-4">
+    <main className="mx-auto flex max-w-3xl flex-col gap-4 px-2 py-4">
       {currentStep === 'input' && renderInputStep()}
       {currentStep === 'tokenizer' && renderTokenizerStep()}
       {currentStep === 'model' && renderModelStep()}

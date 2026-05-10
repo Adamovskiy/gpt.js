@@ -1,4 +1,6 @@
 import { it } from 'node:test';
+
+import { assertArraysClose, assertMatrix2dClose, assertMatrix3dClose } from '../testUtils.ts';
 import {
   getBagOfWordsOptimized,
   getBagOfWordsUnoptimized,
@@ -8,7 +10,6 @@ import {
   softmax,
   sum2d,
 } from './tensorOps.ts';
-import { assertArraysClose, assertMatrix2dClose, assertMatrix3dClose } from '../testUtils.ts';
 
 it('sum2d', () => {
   // Sum of tensors is tensor of sums of its components

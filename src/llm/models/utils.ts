@@ -1,5 +1,5 @@
-import { softmax, type Tensor1d, type Tensor2d, type Tensor3d } from '../tensorOps.ts';
 import { random } from '../../lib/random.ts';
+import { softmax, type Tensor1d, type Tensor2d, type Tensor3d } from '../tensorOps.ts';
 
 export function randomOutputLoss(vocabSize: number) {
   return -Math.log(1 / vocabSize);

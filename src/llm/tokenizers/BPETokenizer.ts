@@ -5,11 +5,11 @@ import type { Tokenizer } from '../types.ts';
 Byte Pair Encoding – individual characters + most popular pairs
  */
 export class BPETokenizer implements Tokenizer {
-  private readonly vocabulary: string[];
-  private readonly tokenToIndex: Map<string, number>;
   private readonly mergeRules: [string, string][];
+  private readonly tokenToIndex: Map<string, number>;
+  private readonly vocabulary: string[];
 
-  constructor(fileContent: string, numMerges: number = 50) {
+  constructor(fileContent: string, numMerges = 50) {
     // Get unique characters first
     const chars = Array.from(new Set(fileContent)).sort();
     this.vocabulary = [...chars];
@@ -60,6 +60,17 @@ export class BPETokenizer implements Tokenizer {
     this.tokenToIndex = new Map(this.vocabulary.map((token, i) => [token, i]));
   }
 
+  decode(indices: Tensor1d): string {
+    return indices
+      .map((i) => {
+        if (i < 0 || i >= this.vocabulary.length) {
+          throw new Error(`Index out of range: ${i}`);
+        }
+        return this.vocabulary[i];
+      })
+      .join('');
+  }
+
   encode(str: string): Tensor1d {
     // Start with individual characters
     let tokens = Array.from(str);
@@ -94,17 +105,6 @@ export class BPETokenizer implements Tokenizer {
     }
 
     return result;
-  }
-
-  decode(indices: Tensor1d): string {
-    return indices
-      .map((i) => {
-        if (i < 0 || i >= this.vocabulary.length) {
-          throw new Error(`Index out of range: ${i}`);
-        }
-        return this.vocabulary[i];
-      })
-      .join('');
   }
 
   getVocab(): string[] {

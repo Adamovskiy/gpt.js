@@ -1,25 +1,16 @@
-import { Head } from './Head.ts';
 import type { Tensor2d, Tensor3d } from '../tensorOps.ts';
+
+import { Head } from './Head.ts';
 
 export class MultiHeadAttention {
   readonly heads: Head[];
-  readonly numHeads: number;
   readonly headSize: number;
+  readonly numHeads: number;
 
   constructor(embeddingSize: number, numHeads: number) {
     this.numHeads = numHeads;
     this.headSize = Math.floor(embeddingSize / numHeads);
     this.heads = Array.from({ length: numHeads }, () => new Head(embeddingSize, this.headSize));
-  }
-
-  // x: (B, T, C) -> (B, T, C)
-  forward(x: Tensor3d): Tensor3d {
-    const headOutputs = this.heads.map((head) => head.forward(x)); // Array of (B, T, headSize)
-
-    // Concatenate along the last dimension: (B, T, numHeads * headSize)
-    return x.map((_, batchIdx) =>
-      x[batchIdx].map((_, tokenIdx) => headOutputs.flatMap((headOutput) => headOutput[batchIdx][tokenIdx])),
-    );
   }
 
   // x: (T, C), dOut: (T, C) -> gradients for all heads
@@ -28,7 +19,7 @@ export class MultiHeadAttention {
     dOut: Tensor2d,
   ): {
     dX: Tensor2d;
-    headGrads: Array<{ dWk: Tensor2d; dWq: Tensor2d; dWv: Tensor2d }>;
+    headGrads: { dWk: Tensor2d; dWq: Tensor2d; dWv: Tensor2d }[];
   } {
     // Split dOut back into per-head gradients: (T, numHeads * headSize) -> numHeads × (T, headSize)
     const dOutPerHead = this.heads.map((_, headIdx) =>
@@ -51,5 +42,15 @@ export class MultiHeadAttention {
     }));
 
     return { dX, headGrads };
+  }
+
+  // x: (B, T, C) -> (B, T, C)
+  forward(x: Tensor3d): Tensor3d {
+    const headOutputs = this.heads.map((head) => head.forward(x)); // Array of (B, T, headSize)
+
+    // Concatenate along the last dimension: (B, T, numHeads * headSize)
+    return x.map((_, batchIdx) =>
+      x[batchIdx].map((_, tokenIdx) => headOutputs.flatMap((headOutput) => headOutput[batchIdx][tokenIdx])),
+    );
   }
 }

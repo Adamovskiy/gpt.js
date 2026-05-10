@@ -1,4 +1,5 @@
 import type { Tensor1d, Tensor2d } from './tensorOps.ts';
+
 import { random } from '../lib/random.ts';
 
 export const blockSize = 8; // Max context length for predictions

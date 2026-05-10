@@ -1,6 +1,6 @@
-import { LinearGPU } from './LinearGPU.ts';
 import { GPUOperations } from '../../../gpu/gpuOps.ts';
 import { matrixMultiply, type Tensor1d, type Tensor2d, type Tensor3d, transpose } from '../../tensorOps.ts';
+import { LinearGPU } from './LinearGPU.ts';
 
 export class FeedForwardGPU {
   readonly linear1: LinearGPU;
@@ -14,44 +14,15 @@ export class FeedForwardGPU {
     this.linear2 = new LinearGPU(ffnDim, embeddingSize);
   }
 
-  async initializeGPU(device: GPUDevice, gpuOps: GPUOperations): Promise<void> {
-    this.device = device;
-    this.gpuOps = gpuOps;
-    await this.linear1.initializeGPU(device, gpuOps);
-    await this.linear2.initializeGPU(device, gpuOps);
-  }
-
-  async forward(x: Tensor3d): Promise<Tensor3d> {
-    if (!this.device) {
-      // Fallback to CPU implementation
-      return x.map((batch) =>
-        batch.map((token) => {
-          const hidden = this.linear1.forward(token);
-          const activated = hidden.map((val) => Math.max(0, val)); // ReLU
-          return this.linear2.forward(activated);
-        }),
-      );
-    }
-
-    // GPU implementation would go here
-    return x.map((batch) =>
-      batch.map((token) => {
-        const hidden = this.linear1.forward(token);
-        const activated = hidden.map((val) => Math.max(0, val)); // ReLU
-        return this.linear2.forward(activated);
-      }),
-    );
-  }
-
   backward(
     x: Tensor2d,
     dOut: Tensor2d,
   ): {
-    dX: Tensor2d;
-    dW1: Tensor2d;
     dB1: Tensor1d;
-    dW2: Tensor2d;
     dB2: Tensor1d;
+    dW1: Tensor2d;
+    dW2: Tensor2d;
+    dX: Tensor2d;
   } {
     // CPU implementation - same as FeedForward
     const T = x.length;
@@ -92,5 +63,34 @@ export class FeedForwardGPU {
     }
 
     return { dX, dW1, dB1, dW2, dB2 };
+  }
+
+  async forward(x: Tensor3d): Promise<Tensor3d> {
+    if (!this.device) {
+      // Fallback to CPU implementation
+      return x.map((batch) =>
+        batch.map((token) => {
+          const hidden = this.linear1.forward(token);
+          const activated = hidden.map((val) => Math.max(0, val)); // ReLU
+          return this.linear2.forward(activated);
+        }),
+      );
+    }
+
+    // GPU implementation would go here
+    return x.map((batch) =>
+      batch.map((token) => {
+        const hidden = this.linear1.forward(token);
+        const activated = hidden.map((val) => Math.max(0, val)); // ReLU
+        return this.linear2.forward(activated);
+      }),
+    );
+  }
+
+  async initializeGPU(device: GPUDevice, gpuOps: GPUOperations): Promise<void> {
+    this.device = device;
+    this.gpuOps = gpuOps;
+    await this.linear1.initializeGPU(device, gpuOps);
+    await this.linear2.initializeGPU(device, gpuOps);
   }
 }

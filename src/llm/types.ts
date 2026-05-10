@@ -19,7 +19,7 @@ export interface Trainable {
     contextTokens: Tensor2d,
     targets: Tensor2d,
     precomputedLogits?: Tensor3d,
-  ): { [paramName: string]: Tensor2d | Tensor1d };
+  ): Record<string, Tensor2d | Tensor1d>;
 }
 
 export interface LanguageModel extends Trainable {

@@ -1,10 +1,11 @@
 import type { Tensor1d, Tensor2d, Tensor3d } from '../../tensorOps.ts';
+
 import { GPUOperations } from '../../../gpu/gpuOps.ts';
 
 export class LayerNormGPU {
-  readonly gamma: Tensor1d;
   readonly beta: Tensor1d;
   readonly eps: number;
+  readonly gamma: Tensor1d;
   private device: GPUDevice | null = null;
   private gpuOps: GPUOperations | null = null;
 
@@ -14,35 +15,13 @@ export class LayerNormGPU {
     this.beta = new Array<number>(embeddingSize).fill(0.0);
   }
 
-  async initializeGPU(device: GPUDevice, gpuOps: GPUOperations): Promise<void> {
-    this.device = device;
-    this.gpuOps = gpuOps;
-  }
-
-  async forward(x: Tensor3d): Promise<Tensor3d> {
-    if (!this.device || !this.gpuOps) {
-      // Fallback to CPU implementation
-      return x.map((batch) =>
-        batch.map((token) => {
-          const mean = token.reduce((sum, val) => sum + val, 0) / token.length;
-          const variance = token.reduce((sum, val) => sum + (val - mean) ** 2, 0) / token.length;
-          const std = Math.sqrt(variance + this.eps);
-          return token.map((val, i) => ((val - mean) / std) * this.gamma[i] + this.beta[i]);
-        }),
-      );
-    }
-
-    // Use GPU implementation
-    return await this.gpuOps.layerNorm(x, this.gamma, this.beta, this.eps);
-  }
-
   backward(
     x: Tensor2d,
     dOut: Tensor2d,
   ): {
-    dX: Tensor2d;
-    dGamma: Tensor1d;
     dBeta: Tensor1d;
+    dGamma: Tensor1d;
+    dX: Tensor2d;
   } {
     // CPU implementation for backward pass - same as LayerNorm
     const T = x.length;
@@ -78,5 +57,27 @@ export class LayerNormGPU {
     }
 
     return { dX, dGamma, dBeta };
+  }
+
+  async forward(x: Tensor3d): Promise<Tensor3d> {
+    if (!this.device || !this.gpuOps) {
+      // Fallback to CPU implementation
+      return x.map((batch) =>
+        batch.map((token) => {
+          const mean = token.reduce((sum, val) => sum + val, 0) / token.length;
+          const variance = token.reduce((sum, val) => sum + (val - mean) ** 2, 0) / token.length;
+          const std = Math.sqrt(variance + this.eps);
+          return token.map((val, i) => ((val - mean) / std) * this.gamma[i] + this.beta[i]);
+        }),
+      );
+    }
+
+    // Use GPU implementation
+    return await this.gpuOps.layerNorm(x, this.gamma, this.beta, this.eps);
+  }
+
+  async initializeGPU(device: GPUDevice, gpuOps: GPUOperations): Promise<void> {
+    this.device = device;
+    this.gpuOps = gpuOps;
   }
 }

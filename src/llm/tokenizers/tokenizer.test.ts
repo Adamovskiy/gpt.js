@@ -1,7 +1,8 @@
-import { it } from 'node:test';
-import { CharTokenizer } from './CharTokenizer.ts';
 import assert from 'node:assert/strict';
+import { it } from 'node:test';
+
 import { assertArraysClose } from '../../testUtils.ts';
+import { CharTokenizer } from './CharTokenizer.ts';
 
 it('CharTokenizer', () => {
   const tokenizer = new CharTokenizer('aabbb!');

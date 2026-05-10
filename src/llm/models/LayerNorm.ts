@@ -1,9 +1,9 @@
 import type { Tensor1d, Tensor2d, Tensor3d } from '../tensorOps.ts';
 
 export class LayerNorm {
-  readonly gamma: Tensor1d; // learnable scale parameters
   readonly beta: Tensor1d; // learnable shift parameters
   readonly eps: number;
+  readonly gamma: Tensor1d; // learnable scale parameters
 
   constructor(embeddingSize: number, eps = 1e-5) {
     this.eps = eps;
@@ -11,29 +11,14 @@ export class LayerNorm {
     this.beta = new Array<number>(embeddingSize).fill(0.0); // initialize to 0
   }
 
-  // x: (B, T, C) -> (B, T, C)
-  forward(x: Tensor3d): Tensor3d {
-    return x.map((batch) =>
-      batch.map((token) => {
-        // Calculate mean and variance for this token
-        const mean = token.reduce((sum, val) => sum + val, 0) / token.length;
-        const variance = token.reduce((sum, val) => sum + (val - mean) ** 2, 0) / token.length;
-        const std = Math.sqrt(variance + this.eps);
-
-        // Normalize and apply learnable parameters
-        return token.map((val, i) => ((val - mean) / std) * this.gamma[i] + this.beta[i]);
-      }),
-    );
-  }
-
   // x: (T, C), dOut: (T, C) -> gradients w.r.t. x, gamma, beta
   backward(
     x: Tensor2d,
     dOut: Tensor2d,
   ): {
-    dX: Tensor2d;
-    dGamma: Tensor1d;
     dBeta: Tensor1d;
+    dGamma: Tensor1d;
+    dX: Tensor2d;
   } {
     const T = x.length;
     const C = x[0].length;
@@ -72,5 +57,20 @@ export class LayerNorm {
     }
 
     return { dX, dGamma, dBeta };
+  }
+
+  // x: (B, T, C) -> (B, T, C)
+  forward(x: Tensor3d): Tensor3d {
+    return x.map((batch) =>
+      batch.map((token) => {
+        // Calculate mean and variance for this token
+        const mean = token.reduce((sum, val) => sum + val, 0) / token.length;
+        const variance = token.reduce((sum, val) => sum + (val - mean) ** 2, 0) / token.length;
+        const std = Math.sqrt(variance + this.eps);
+
+        // Normalize and apply learnable parameters
+        return token.map((val, i) => ((val - mean) / std) * this.gamma[i] + this.beta[i]);
+      }),
+    );
   }
 }

@@ -3,30 +3,23 @@ import type { Trainable } from '../types.ts';
 import type { Optimizer } from './utils.ts';
 
 export class UniversalAdamWOptimizer implements Optimizer {
-  private momentum: { [paramName: string]: Tensor2d | Tensor1d } = {};
-  private velocity: { [paramName: string]: Tensor2d | Tensor1d } = {};
-  private stepCount = 0;
-
-  private readonly model: Trainable;
+  private readonly beta1: number = 0.9;
+  private readonly beta2: number = 0.999;
+  private readonly eps: number = 1e-8;
 
   private readonly learningRate: number;
 
-  private readonly beta1: number = 0.9;
+  private readonly model: Trainable;
 
-  private readonly beta2: number = 0.999;
+  private momentum: Record<string, Tensor2d | Tensor1d> = {};
 
-  private readonly eps: number = 1e-8;
+  private stepCount = 0;
+
+  private velocity: Record<string, Tensor2d | Tensor1d> = {};
 
   private readonly weightDecay: number = 0.01;
 
-  constructor(
-    model: Trainable,
-    learningRate: number,
-    beta1: number = 0.9,
-    beta2: number = 0.999,
-    eps: number = 1e-8,
-    weightDecay: number = 0.01,
-  ) {
+  constructor(model: Trainable, learningRate: number, beta1 = 0.9, beta2 = 0.999, eps = 1e-8, weightDecay = 0.01) {
     this.weightDecay = weightDecay;
     this.eps = eps;
     this.beta2 = beta2;

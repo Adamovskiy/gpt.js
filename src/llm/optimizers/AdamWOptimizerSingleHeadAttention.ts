@@ -1,36 +1,37 @@
-import { matrixMultiply, softmax, type Tensor1d, type Tensor2d, transpose } from '../tensorOps.ts';
-import { BigramLanguageModelSingleHeadAttention } from '../models/BigramLanguageModelSingleHeadAttention.ts';
 import type { Optimizer } from './utils.ts';
 
+import { BigramLanguageModelSingleHeadAttention } from '../models/BigramLanguageModelSingleHeadAttention.ts';
+import { matrixMultiply, softmax, type Tensor1d, type Tensor2d, transpose } from '../tensorOps.ts';
+
 export class AdamWOptimizerSingleHeadAttention implements Optimizer {
-  private readonly embeddingMomentum: Tensor2d;
-  private readonly embeddingVelocity: Tensor2d;
-
-  private readonly wkMomentum: Tensor2d;
-  private readonly wkVelocity: Tensor2d;
-  private readonly wqMomentum: Tensor2d;
-  private readonly wqVelocity: Tensor2d;
-  private readonly wvMomentum: Tensor2d;
-  private readonly wvVelocity: Tensor2d;
-
-  private readonly weightsMomentum: Tensor2d;
-  private readonly weightsVelocity: Tensor2d;
-  private readonly biasMomentum: Tensor1d;
-  private readonly biasVelocity: Tensor1d;
-
-  private stepCount = 0;
-
-  private readonly model: BigramLanguageModelSingleHeadAttention;
-
-  private readonly learningRate: number;
-
   private readonly beta1: number;
-
   private readonly beta2: number;
 
+  private readonly biasMomentum: Tensor1d;
+  private readonly biasVelocity: Tensor1d;
+  private readonly embeddingMomentum: Tensor2d;
+  private readonly embeddingVelocity: Tensor2d;
   private readonly eps: number;
+  private readonly learningRate: number;
 
+  private readonly model: BigramLanguageModelSingleHeadAttention;
+  private stepCount = 0;
   private readonly weightDecay: number;
+  private readonly weightsMomentum: Tensor2d;
+
+  private readonly weightsVelocity: Tensor2d;
+
+  private readonly wkMomentum: Tensor2d;
+
+  private readonly wkVelocity: Tensor2d;
+
+  private readonly wqMomentum: Tensor2d;
+
+  private readonly wqVelocity: Tensor2d;
+
+  private readonly wvMomentum: Tensor2d;
+
+  private readonly wvVelocity: Tensor2d;
 
   constructor(
     model: BigramLanguageModelSingleHeadAttention,

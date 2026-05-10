@@ -1,17 +1,19 @@
-import type { LanguageModel } from '../../llm/types.ts';
-import { blockSize } from '../../llm/sampling.ts';
-import { Button } from '../ui/button.tsx';
-import { Badge } from '../ui/badge.tsx';
-import { Card } from '../ui/card.tsx';
-import { Input } from '../ui/input.tsx';
-import { Label } from '../ui/label.tsx';
 import { ChevronLeft, ChevronRight, Loader } from 'lucide-react';
-import { useState, useCallback } from 'react';
+import { useCallback, useState } from 'react';
+
+import type { LanguageModel } from '../../llm/types.ts';
+
 import { BigramLanguageModel } from '../../llm/models/BigramLanguageModel.ts';
 import { BigramLanguageModelMultiHeadAttention } from '../../llm/models/BigramLanguageModelMultiHeadAttention.ts';
 import { BigramLanguageModelSingleHeadAttention } from '../../llm/models/BigramLanguageModelSingleHeadAttention.ts';
-import { GPTModelGPU } from '../../llm/models/gpu/GPTModelGPU.ts';
 import { GPTModel } from '../../llm/models/GPTModel.ts';
+import { GPTModelGPU } from '../../llm/models/gpu/GPTModelGPU.ts';
+import { blockSize } from '../../llm/sampling.ts';
+import { Badge } from '../ui/badge.tsx';
+import { Button } from '../ui/button.tsx';
+import { Card } from '../ui/card.tsx';
+import { Input } from '../ui/input.tsx';
+import { Label } from '../ui/label.tsx';
 
 export interface ModelConfigProps {
   vocabSize: number;
@@ -40,12 +42,6 @@ export function ModelConfig({ vocabSize, onComplete, onBack }: ModelConfigProps)
         case 'bigram':
           modelInstance = new BigramLanguageModel(vocabSize, embeddingDim, blockSize);
           break;
-        case 'single-head':
-          modelInstance = new BigramLanguageModelSingleHeadAttention(vocabSize, embeddingDim, blockSize);
-          break;
-        case 'multi-head':
-          modelInstance = new BigramLanguageModelMultiHeadAttention(vocabSize, embeddingDim, blockSize, numHeads);
-          break;
         case 'gpt-cpu':
           modelInstance = new GPTModel(vocabSize, embeddingDim, blockSize, numHeads, numLayers);
           break;
@@ -55,6 +51,12 @@ export function ModelConfig({ vocabSize, onComplete, onBack }: ModelConfigProps)
           modelInstance = gpuModel;
           break;
         }
+        case 'multi-head':
+          modelInstance = new BigramLanguageModelMultiHeadAttention(vocabSize, embeddingDim, blockSize, numHeads);
+          break;
+        case 'single-head':
+          modelInstance = new BigramLanguageModelSingleHeadAttention(vocabSize, embeddingDim, blockSize);
+          break;
         default:
           throw new Error(`Unknown model type: ${modelType}`);
       }
@@ -91,13 +93,15 @@ export function ModelConfig({ vocabSize, onComplete, onBack }: ModelConfigProps)
             <Label>
               Embedding Dimensions
               <Input
-                type="number"
-                min="1"
-                max="512"
-                value={embeddingDim}
-                onChange={(e) => setEmbeddingDim(parseInt(e.target.value) || 32)}
-                disabled={isCreating}
                 className="mt-1"
+                disabled={isCreating}
+                max="512"
+                min="1"
+                onChange={(e) => {
+                  setEmbeddingDim(parseInt(e.target.value) || 32);
+                }}
+                type="number"
+                value={embeddingDim}
               />
             </Label>
             <div className="text-sm text-muted-foreground">
@@ -106,78 +110,51 @@ export function ModelConfig({ vocabSize, onComplete, onBack }: ModelConfigProps)
           </div>
         );
 
-      case 'multi-head': {
-        return (
-          <div className="space-y-3">
-            <Label>
-              Embedding Dimensions
-              <Input
-                type="number"
-                min="1"
-                max="512"
-                value={embeddingDim}
-                onChange={(e) => setEmbeddingDim(parseInt(e.target.value) || 32)}
-                disabled={isCreating}
-                className="mt-1"
-              />
-            </Label>
-            <Label>
-              Number of Attention Heads
-              <Input
-                type="number"
-                min="1"
-                max="16"
-                value={numHeads}
-                onChange={(e) => setNumHeads(parseInt(e.target.value) || 2)}
-                disabled={isCreating}
-                className="mt-1"
-              />
-            </Label>
-            <div className="text-sm text-muted-foreground">
-              Multiple attention heads allow the model to attend to different aspects of the sequence simultaneously.
-            </div>
-          </div>
-        );
-      }
-
       case 'gpt-cpu':
+
       case 'gpt-gpu':
         return (
           <div className="space-y-3">
             <Label>
               Embedding Dimensions
               <Input
-                type="number"
-                min="1"
-                max="512"
-                value={embeddingDim}
-                onChange={(e) => setEmbeddingDim(parseInt(e.target.value) || 32)}
-                disabled={isCreating}
                 className="mt-1"
+                disabled={isCreating}
+                max="512"
+                min="1"
+                onChange={(e) => {
+                  setEmbeddingDim(parseInt(e.target.value) || 32);
+                }}
+                type="number"
+                value={embeddingDim}
               />
             </Label>
             <Label>
               Number of Attention Heads
               <Input
-                type="number"
-                min="1"
-                max="16"
-                value={numHeads}
-                onChange={(e) => setNumHeads(parseInt(e.target.value) || 2)}
-                disabled={isCreating}
                 className="mt-1"
+                disabled={isCreating}
+                max="16"
+                min="1"
+                onChange={(e) => {
+                  setNumHeads(parseInt(e.target.value) || 2);
+                }}
+                type="number"
+                value={numHeads}
               />
             </Label>
             <Label>
               Number of Transformer Layers
               <Input
-                type="number"
-                min="1"
-                max="12"
-                value={numLayers}
-                onChange={(e) => setNumLayers(parseInt(e.target.value) || 2)}
-                disabled={isCreating}
                 className="mt-1"
+                disabled={isCreating}
+                max="12"
+                min="1"
+                onChange={(e) => {
+                  setNumLayers(parseInt(e.target.value) || 2);
+                }}
+                type="number"
+                value={numLayers}
               />
             </Label>
             <div className="text-sm text-muted-foreground">
@@ -186,6 +163,43 @@ export function ModelConfig({ vocabSize, onComplete, onBack }: ModelConfigProps)
             </div>
           </div>
         );
+      case 'multi-head': {
+        return (
+          <div className="space-y-3">
+            <Label>
+              Embedding Dimensions
+              <Input
+                className="mt-1"
+                disabled={isCreating}
+                max="512"
+                min="1"
+                onChange={(e) => {
+                  setEmbeddingDim(parseInt(e.target.value) || 32);
+                }}
+                type="number"
+                value={embeddingDim}
+              />
+            </Label>
+            <Label>
+              Number of Attention Heads
+              <Input
+                className="mt-1"
+                disabled={isCreating}
+                max="16"
+                min="1"
+                onChange={(e) => {
+                  setNumHeads(parseInt(e.target.value) || 2);
+                }}
+                type="number"
+                value={numHeads}
+              />
+            </Label>
+            <div className="text-sm text-muted-foreground">
+              Multiple attention heads allow the model to attend to different aspects of the sequence simultaneously.
+            </div>
+          </div>
+        );
+      }
 
       default:
         return null;
@@ -204,11 +218,16 @@ export function ModelConfig({ vocabSize, onComplete, onBack }: ModelConfigProps)
           <div className="space-y-3">
             <Label htmlFor="model-type-select">Model Type</Label>
             <select
-              id="model-type-select"
-              value={modelType}
-              onChange={(e) => setModelType(e.target.value)}
+              className="
+                w-full rounded-md border border-input bg-background p-2
+                disabled:opacity-50
+              "
               disabled={isCreating}
-              className="w-full p-2 border border-input rounded-md bg-background disabled:opacity-50"
+              id="model-type-select"
+              onChange={(e) => {
+                setModelType(e.target.value);
+              }}
+              value={modelType}
             >
               {modelTypes.map((type) => (
                 <option key={type.value} value={type.value}>
@@ -225,14 +244,14 @@ export function ModelConfig({ vocabSize, onComplete, onBack }: ModelConfigProps)
           {renderModelParameters()}
 
           {modelType === 'gpt-gpu' && (
-            <div className="p-3 text-sm text-yellow-800 bg-yellow-50 rounded-md">
+            <div className="rounded-md bg-yellow-50 p-3 text-sm text-yellow-800">
               ⚠️ GPU model requires WebGPU support (Chrome 113+, Edge 113+)
             </div>
           )}
         </div>
 
         {model && (
-          <Card className="p-4 bg-green-50">
+          <Card className="bg-green-50 p-4">
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium">
@@ -249,16 +268,16 @@ export function ModelConfig({ vocabSize, onComplete, onBack }: ModelConfigProps)
         )}
 
         <div className="flex justify-between">
-          <Button variant="outline" onClick={onBack} disabled={isCreating}>
-            <ChevronLeft className="w-4 h-4 mr-1" />
+          <Button disabled={isCreating} onClick={onBack} variant="outline">
+            <ChevronLeft className="mr-1 size-4" />
             Back
           </Button>
 
           {!model ? (
-            <Button onClick={createModel} disabled={isCreating}>
+            <Button disabled={isCreating} onClick={createModel}>
               {isCreating ? (
                 <>
-                  <Loader className="w-4 h-4 mr-2 animate-spin" />
+                  <Loader className="mr-2 size-4 animate-spin" />
                   Creating Model...
                 </>
               ) : (
@@ -268,7 +287,7 @@ export function ModelConfig({ vocabSize, onComplete, onBack }: ModelConfigProps)
           ) : (
             <Button onClick={handleFinish}>
               Next: Create Optimizer
-              <ChevronRight className="w-4 h-4 ml-1" />
+              <ChevronRight className="ml-1 size-4" />
             </Button>
           )}
         </div>

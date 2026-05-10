@@ -1,5 +1,5 @@
-import { Linear } from './Linear.ts';
 import { matrixMultiply, type Tensor1d, type Tensor2d, type Tensor3d, transpose } from '../tensorOps.ts';
+import { Linear } from './Linear.ts';
 
 export class FeedForward {
   readonly linear1: Linear;
@@ -11,27 +11,16 @@ export class FeedForward {
     this.linear2 = new Linear(ffnDim, embeddingSize);
   }
 
-  // x: (B, T, C) -> (B, T, C)
-  forward(x: Tensor3d): Tensor3d {
-    return x.map((batch) =>
-      batch.map((token) => {
-        const hidden = this.linear1.forward(token);
-        const activated = hidden.map((val) => Math.max(0, val)); // ReLU activation
-        return this.linear2.forward(activated);
-      }),
-    );
-  }
-
   // x: (T, C), dOut: (T, C) -> gradients w.r.t. x and weight matrices
   backward(
     x: Tensor2d,
     dOut: Tensor2d,
   ): {
-    dX: Tensor2d;
-    dW1: Tensor2d;
     dB1: Tensor1d;
-    dW2: Tensor2d;
     dB2: Tensor1d;
+    dW1: Tensor2d;
+    dW2: Tensor2d;
+    dX: Tensor2d;
   } {
     const T = x.length;
 
@@ -77,5 +66,16 @@ export class FeedForward {
     }
 
     return { dX, dW1, dB1, dW2, dB2 };
+  }
+
+  // x: (B, T, C) -> (B, T, C)
+  forward(x: Tensor3d): Tensor3d {
+    return x.map((batch) =>
+      batch.map((token) => {
+        const hidden = this.linear1.forward(token);
+        const activated = hidden.map((val) => Math.max(0, val)); // ReLU activation
+        return this.linear2.forward(activated);
+      }),
+    );
   }
 }

@@ -2,16 +2,21 @@ import type { Tensor1d } from '../tensorOps.ts';
 import type { Tokenizer } from '../types.ts';
 
 export class CharTokenizer implements Tokenizer {
-  private readonly vocabulary: string[];
   private readonly charToIndex: Map<string, number>;
+  private readonly vocabulary: string[];
 
   constructor(fileContent: string) {
     this.vocabulary = Array.from(new Set(fileContent)).sort();
     this.charToIndex = new Map(this.vocabulary.map((ch, i) => [ch, i]));
   }
 
-  getVocab(): string[] {
-    return this.vocabulary;
+  decode(indices: Tensor1d): string {
+    return indices
+      .map((i) => {
+        if (i < 0 || i >= this.vocabulary.length) throw new Error(`Index out of range: ${i}`);
+        return this.vocabulary[i];
+      })
+      .join('');
   }
 
   encode(str: string): Tensor1d {
@@ -22,13 +27,8 @@ export class CharTokenizer implements Tokenizer {
     });
   }
 
-  decode(indices: Tensor1d): string {
-    return indices
-      .map((i) => {
-        if (i < 0 || i >= this.vocabulary.length) throw new Error(`Index out of range: ${i}`);
-        return this.vocabulary[i];
-      })
-      .join('');
+  getVocab(): string[] {
+    return this.vocabulary;
   }
 
   getVocabSize() {

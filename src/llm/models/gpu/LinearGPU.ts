@@ -3,26 +3,19 @@ import { random } from '../../../lib/random.ts';
 import { matrixMultiply, sum1d, type Tensor1d, type Tensor3d } from '../../tensorOps.ts';
 
 export class LinearGPU {
-  readonly weights: number[][];
   readonly bias: number[];
+  readonly weights: number[][];
+  private biasBuffer: GPUBuffer | null = null;
   private device: GPUDevice | null = null;
   private gpuOps: GPUOperations | null = null;
-  private weightsBuffer: GPUBuffer | null = null;
-  private biasBuffer: GPUBuffer | null = null;
   private pipeline: GPUComputePipeline | null = null;
+  private weightsBuffer: GPUBuffer | null = null;
 
   constructor(inputSize: number, outputSize: number, useBias = true) {
     this.weights = Array.from({ length: inputSize }, () => Array.from({ length: outputSize }, () => random() * 0.01));
     this.bias = useBias
       ? Array.from({ length: outputSize }, () => random() * 0.01)
       : new Array<number>(outputSize).fill(0);
-  }
-
-  async initializeGPU(device: GPUDevice, gpuOps: GPUOperations): Promise<void> {
-    this.device = device;
-    this.gpuOps = gpuOps;
-    // GPU buffer initialization would go here
-    // For now, keeping it simple
   }
 
   // CPU version for compatibility
@@ -46,5 +39,12 @@ export class LinearGPU {
     }
 
     return result;
+  }
+
+  async initializeGPU(device: GPUDevice, gpuOps: GPUOperations): Promise<void> {
+    this.device = device;
+    this.gpuOps = gpuOps;
+    // GPU buffer initialization would go here
+    // For now, keeping it simple
   }
 }

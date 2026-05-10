@@ -1,13 +1,15 @@
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useCallback, useState } from 'react';
+
 import type { Trainable } from '../../llm/types.ts';
+
+import { SDGOptimizer } from '../../llm/optimizers/SDGOptimizer.ts';
+import { UniversalAdamWOptimizer } from '../../llm/optimizers/UniversalAdamWOptimizer.ts';
+import { type Optimizer } from '../../llm/optimizers/utils.ts';
 import { Button } from '../ui/button.tsx';
 import { Card } from '../ui/card.tsx';
 import { Input } from '../ui/input.tsx';
 import { Label } from '../ui/label.tsx';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { type Optimizer } from '../../llm/optimizers/utils.ts';
-import { useState, useCallback } from 'react';
-import { SDGOptimizer } from '../../llm/optimizers/SDGOptimizer.ts';
-import { UniversalAdamWOptimizer } from '../../llm/optimizers/UniversalAdamWOptimizer.ts';
 
 export interface OptimizerConfigProps {
   model: Trainable;
@@ -56,38 +58,44 @@ export function OptimizerConfig({ model, onComplete, onBack }: OptimizerConfigPr
           <Label>
             Learning Rate
             <Input
-              type="number"
-              step="0.0001"
-              min="0.0001"
-              max="0.1"
-              value={learningRate}
-              onChange={(e) => setLearningRate(parseFloat(e.target.value) || 3e-4)}
               className="mt-1"
+              max="0.1"
+              min="0.0001"
+              onChange={(e) => {
+                setLearningRate(parseFloat(e.target.value) || 3e-4);
+              }}
+              step="0.0001"
+              type="number"
+              value={learningRate}
             />
           </Label>
           <div className="grid grid-cols-2 gap-3">
             <Label>
               Beta 1
               <Input
-                type="number"
-                step="0.01"
-                min="0.1"
-                max="0.999"
-                value={beta1}
-                onChange={(e) => setBeta1(parseFloat(e.target.value) || 0.9)}
                 className="mt-1"
+                max="0.999"
+                min="0.1"
+                onChange={(e) => {
+                  setBeta1(parseFloat(e.target.value) || 0.9);
+                }}
+                step="0.01"
+                type="number"
+                value={beta1}
               />
             </Label>
             <Label>
               Beta 2
               <Input
-                type="number"
-                step="0.01"
-                min="0.1"
-                max="0.999"
-                value={beta2}
-                onChange={(e) => setBeta2(parseFloat(e.target.value) || 0.999)}
                 className="mt-1"
+                max="0.999"
+                min="0.1"
+                onChange={(e) => {
+                  setBeta2(parseFloat(e.target.value) || 0.999);
+                }}
+                step="0.01"
+                type="number"
+                value={beta2}
               />
             </Label>
           </div>
@@ -95,25 +103,29 @@ export function OptimizerConfig({ model, onComplete, onBack }: OptimizerConfigPr
             <Label>
               Epsilon
               <Input
-                type="number"
-                step="0.0000001"
-                min="1e-10"
-                max="1e-6"
-                value={epsilon}
-                onChange={(e) => setEpsilon(parseFloat(e.target.value) || 1e-8)}
                 className="mt-1"
+                max="1e-6"
+                min="1e-10"
+                onChange={(e) => {
+                  setEpsilon(parseFloat(e.target.value) || 1e-8);
+                }}
+                step="0.0000001"
+                type="number"
+                value={epsilon}
               />
             </Label>
             <Label>
               Weight Decay
               <Input
-                type="number"
-                step="0.001"
-                min="0"
-                max="0.1"
-                value={weightDecay}
-                onChange={(e) => setWeightDecay(parseFloat(e.target.value) || 0.01)}
                 className="mt-1"
+                max="0.1"
+                min="0"
+                onChange={(e) => {
+                  setWeightDecay(parseFloat(e.target.value) || 0.01);
+                }}
+                step="0.001"
+                type="number"
+                value={weightDecay}
               />
             </Label>
           </div>
@@ -128,13 +140,15 @@ export function OptimizerConfig({ model, onComplete, onBack }: OptimizerConfigPr
           <Label>
             Learning Rate
             <Input
-              type="number"
-              step="0.001"
-              min="0.001"
-              max="1.0"
-              value={learningRate}
-              onChange={(e) => setLearningRate(parseFloat(e.target.value) || 0.01)}
               className="mt-1"
+              max="1.0"
+              min="0.001"
+              onChange={(e) => {
+                setLearningRate(parseFloat(e.target.value) || 0.01);
+              }}
+              step="0.001"
+              type="number"
+              value={learningRate}
             />
           </Label>
           <div className="text-sm text-muted-foreground">
@@ -157,10 +171,14 @@ export function OptimizerConfig({ model, onComplete, onBack }: OptimizerConfigPr
           <div className="space-y-3">
             <Label htmlFor="optimizer-type-select">Optimizer Type</Label>
             <select
+              className="
+                w-full rounded-md border border-input bg-background p-2
+              "
               id="optimizer-type-select"
+              onChange={(e) => {
+                setOptimizerType(e.target.value);
+              }}
               value={optimizerType}
-              onChange={(e) => setOptimizerType(e.target.value)}
-              className="w-full p-2 border border-input rounded-md bg-background"
             >
               {optimizerTypes.map((type) => (
                 <option key={type.value} value={type.value}>
@@ -178,7 +196,7 @@ export function OptimizerConfig({ model, onComplete, onBack }: OptimizerConfigPr
         </div>
 
         {optimizer && (
-          <Card className="p-4 bg-green-50">
+          <Card className="bg-green-50 p-4">
             <div className="space-y-2">
               <div className="text-sm font-medium">
                 {(optimizer as { constructor: { name: string } }).constructor.name} created
@@ -189,8 +207,8 @@ export function OptimizerConfig({ model, onComplete, onBack }: OptimizerConfigPr
         )}
 
         <div className="flex justify-between">
-          <Button variant="outline" onClick={onBack}>
-            <ChevronLeft className="w-4 h-4 mr-1" />
+          <Button onClick={onBack} variant="outline">
+            <ChevronLeft className="mr-1 size-4" />
             Back
           </Button>
 
@@ -199,7 +217,7 @@ export function OptimizerConfig({ model, onComplete, onBack }: OptimizerConfigPr
           ) : (
             <Button onClick={handleFinish}>
               Next: Train & Generate
-              <ChevronRight className="w-4 h-4 ml-1" />
+              <ChevronRight className="ml-1 size-4" />
             </Button>
           )}
         </div>

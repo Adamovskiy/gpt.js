@@ -35,11 +35,13 @@ export function Vocabulary({ tokenizer }: { tokenizer: Tokenizer }) {
         {totalPages > 1 && (
           <div className="flex items-center gap-2">
             <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => setPage((page) => Math.max(0, page - 1))}
               disabled={currentPage === 0}
+              onClick={() => {
+                setPage((page) => Math.max(0, page - 1));
+              }}
+              size="sm"
+              type="button"
+              variant="outline"
             >
               Prev
             </Button>
@@ -49,11 +51,13 @@ export function Vocabulary({ tokenizer }: { tokenizer: Tokenizer }) {
             </span>
 
             <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => setPage((page) => Math.min(totalPages - 1, page + 1))}
               disabled={currentPage >= totalPages - 1}
+              onClick={() => {
+                setPage((page) => Math.min(totalPages - 1, page + 1));
+              }}
+              size="sm"
+              type="button"
+              variant="outline"
             >
               Next
             </Button>
@@ -61,17 +65,35 @@ export function Vocabulary({ tokenizer }: { tokenizer: Tokenizer }) {
         )}
       </div>
 
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+      <div
+        className="
+          grid grid-cols-1 gap-2
+          sm:grid-cols-2
+          md:grid-cols-3
+          lg:grid-cols-4
+          xl:grid-cols-6
+        "
+      >
         {visibleVocabulary.map((token, localIdx) => {
           const idx = currentPage * PAGE_SIZE + localIdx;
           const value = JSON.stringify(token).slice(1, -1);
 
           return (
             <div
+              className="
+                grid grid-cols-[3rem_1fr] overflow-hidden rounded-md bg-gray-50
+                text-sm
+              "
               key={`${idx}-${value}`}
-              className="grid grid-cols-[3rem_1fr] overflow-hidden rounded-md bg-gray-50 text-sm"
             >
-              <div className="border-r bg-muted px-2 py-1.5 font-mono text-xs text-muted-foreground">{idx}</div>
+              <div
+                className="
+                  border-r bg-muted px-2 py-1.5 font-mono text-xs
+                  text-muted-foreground
+                "
+              >
+                {idx}
+              </div>
 
               <div className="truncate px-2 py-1.5 font-mono" title={value}>
                 {value}

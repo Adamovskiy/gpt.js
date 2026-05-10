@@ -1,9 +1,9 @@
 import {
+  getBagOfWordsOptimized,
+  getBagOfWordsUnoptimized,
   lowerTriangularMatrixAvgWeighted,
   lowerTriangularMatrixAvgWeightedSoftmax,
   matrixMultiply,
-  getBagOfWordsOptimized,
-  getBagOfWordsUnoptimized,
 } from './llm/tensorOps.ts';
 
 const ITERATIONS = 10_000;

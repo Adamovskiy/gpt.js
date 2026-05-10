@@ -1,5 +1,6 @@
-import { softmax, type Tensor2d } from '../tensorOps.ts';
 import type { Model, Optimizer } from './utils.ts';
+
+import { softmax, type Tensor2d } from '../tensorOps.ts';
 
 export class SDGOptimizer implements Optimizer {
   private readonly learningRate: number;
