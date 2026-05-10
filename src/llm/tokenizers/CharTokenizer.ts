@@ -1,13 +1,29 @@
 import type { Tensor1d } from '../tensorOps.ts';
 import type { Tokenizer } from '../types.ts';
 
-export class CharTokenizer implements Tokenizer {
+export interface CharTokenizerSerializedData {
+  vocabulary: string[];
+}
+
+export class CharTokenizer implements Tokenizer<CharTokenizerSerializedData> {
   private readonly charToIndex: Map<string, number>;
   private readonly vocabulary: string[];
 
   constructor(fileContent: string) {
     this.vocabulary = Array.from(new Set(fileContent)).sort();
     this.charToIndex = new Map(this.vocabulary.map((ch, i) => [ch, i]));
+  }
+
+  static fromSerializedData(data: CharTokenizerSerializedData): CharTokenizer {
+    return CharTokenizer.createFromData(data);
+  }
+
+  private static createFromData(data: CharTokenizerSerializedData): CharTokenizer {
+    // Ignore read-only restriction when deserializing
+    const instance = Object.create(CharTokenizer.prototype) as Record<string, unknown>;
+    instance.vocabulary = data.vocabulary;
+    instance.charToIndex = new Map(data.vocabulary.map((ch, i) => [ch, i]));
+    return instance as unknown as CharTokenizer;
   }
 
   decode(indices: Tensor1d): string {
@@ -25,6 +41,12 @@ export class CharTokenizer implements Tokenizer {
       if (idx === undefined) throw new Error(`Unknown character: "${ch}"`);
       return idx;
     });
+  }
+
+  getSerializedData(): CharTokenizerSerializedData {
+    return {
+      vocabulary: this.vocabulary,
+    };
   }
 
   getVocab(): string[] {

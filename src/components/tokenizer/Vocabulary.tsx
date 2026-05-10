@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
 
-import { Button } from '@/components/ui/button';
+import type { Tokenizer } from '@/llm/types.ts';
 
-import type { Tokenizer } from '../../llm/types.ts';
+import { Button } from '@/components/ui/button';
 
 const PAGE_SIZE = 36;
 

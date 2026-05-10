@@ -4,16 +4,23 @@ import type { Tokenizer } from '../types.ts';
 /*
 Byte Pair Encoding – individual characters + most popular pairs
  */
-export class BPETokenizer implements Tokenizer {
+export interface BPETokenizerSerializedData {
+  vocabulary: string[];
+  mergeRules: [string, string][];
+}
+
+export class BPETokenizer implements Tokenizer<BPETokenizerSerializedData> {
   private readonly mergeRules: [string, string][];
   private readonly tokenToIndex: Map<string, number>;
   private readonly vocabulary: string[];
 
-  constructor(fileContent: string, numMerges = 50) {
+  constructor(fileContent: string, numMerges: number, onProgress: (progress: number) => void) {
     // Get unique characters first
     const chars = Array.from(new Set(fileContent)).sort();
     this.vocabulary = [...chars];
     this.mergeRules = [];
+
+    onProgress(1 / (numMerges + 1));
 
     // Simple approach: just find most frequent pairs and remember them
     // Don't modify the original text during training
@@ -29,11 +36,7 @@ export class BPETokenizer implements Tokenizer {
         // Skip whitespace pairs
         if (char1 !== ' ' && char2 !== ' ' && char1 !== '\n' && char2 !== '\n') {
           const pair = char1 + char2;
-
-          // Only count if both characters are in our current vocab
-          if (this.vocabulary.includes(char1) && this.vocabulary.includes(char2)) {
-            pairCounts.set(pair, (pairCounts.get(pair) || 0) + 1);
-          }
+          pairCounts.set(pair, (pairCounts.get(pair) ?? 0) + 1);
         }
       }
 
@@ -54,10 +57,24 @@ export class BPETokenizer implements Tokenizer {
       // Add to vocabulary and remember the rule
       this.vocabulary.push(bestPair);
       this.mergeRules.push([bestPair[0], bestPair[1]]);
+      onProgress((2 + merge) / (numMerges + 1));
     }
 
     // Create token to index mapping
     this.tokenToIndex = new Map(this.vocabulary.map((token, i) => [token, i]));
+  }
+
+  static fromSerializedData(data: BPETokenizerSerializedData): BPETokenizer {
+    return BPETokenizer.createFromData(data);
+  }
+
+  private static createFromData(data: BPETokenizerSerializedData): BPETokenizer {
+    // Ignore read-only restriction when deserializing
+    const instance = Object.create(BPETokenizer.prototype) as Record<string, unknown>;
+    instance.vocabulary = data.vocabulary;
+    instance.mergeRules = data.mergeRules;
+    instance.tokenToIndex = new Map(data.vocabulary.map((token, i) => [token, i]));
+    return instance as unknown as BPETokenizer;
   }
 
   decode(indices: Tensor1d): string {
@@ -105,6 +122,13 @@ export class BPETokenizer implements Tokenizer {
     }
 
     return result;
+  }
+
+  getSerializedData(): BPETokenizerSerializedData {
+    return {
+      vocabulary: this.vocabulary,
+      mergeRules: this.mergeRules,
+    };
   }
 
   getVocab(): string[] {

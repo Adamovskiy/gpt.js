@@ -1,12 +1,12 @@
 import { useMemo, useState } from 'react';
 
+import type { Tokenizer } from '@/llm/types.ts';
+
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
-
-import type { Tokenizer } from '../../llm/types.ts';
 
 function parseTokenInput(input: string): {
   error: string | null;

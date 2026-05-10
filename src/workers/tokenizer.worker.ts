@@ -1,72 +1,77 @@
 import type { Tokenizer } from '../llm/types.ts';
 
-import { BPETokenizer } from '../llm/tokenizers/BPETokenizer.ts';
-import { CharTokenizer } from '../llm/tokenizers/CharTokenizer.ts';
+import { BPETokenizer, type BPETokenizerSerializedData } from '../llm/tokenizers/BPETokenizer.ts';
+import { CharTokenizer, type CharTokenizerSerializedData } from '../llm/tokenizers/CharTokenizer.ts';
 
-export interface TokenizerWorkerMessage {
-  type: 'create';
-  tokenizerType: 'BPE' | 'Char';
+export type TokenizerWorkerMessage = {
   fileContent: string;
-  numMerges?: number;
-}
-
-export interface TokenizerWorkerResponse {
-  type: 'progress' | 'complete' | 'error';
-  progress?: number;
-  tokenizer?: {
-    // We'll serialize the tokenizer data instead of the class instance
-    data: { fileContent: string; numMerges?: number };
-    type: string;
-    vocab: string[];
-    vocabSize: number;
-  };
-  error?: string;
-}
-
-self.onmessage = async (event: MessageEvent<TokenizerWorkerMessage>) => {
-  const { type, tokenizerType, fileContent, numMerges } = event.data;
-
-  if (type === 'create') {
-    try {
-      let tokenizer: Tokenizer;
-
-      if (tokenizerType === 'BPE') {
-        // Create BPE tokenizer with progress updates
-        self.postMessage({ type: 'progress', progress: 10 });
-
-        tokenizer = new BPETokenizer(fileContent, numMerges || 50);
-
-        self.postMessage({ type: 'progress', progress: 100 });
-      } else {
-        // CharTokenizer is fast, no need for progress
-        self.postMessage({ type: 'progress', progress: 50 });
-        tokenizer = new CharTokenizer(fileContent);
-        self.postMessage({ type: 'progress', progress: 100 });
-      }
-
-      // Send the completed tokenizer data
-      self.postMessage({
-        type: 'complete',
-        tokenizer: {
-          type: tokenizerType,
-          vocab: tokenizer.getVocab(),
-          vocabSize: tokenizer.getVocabSize(),
-          data:
-            tokenizerType === 'BPE'
-              ? {
-                  fileContent,
-                  numMerges: numMerges || 50,
-                }
-              : {
-                  fileContent,
-                },
-        },
-      });
-    } catch (error) {
-      self.postMessage({
-        type: 'error',
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
+  type: 'create';
+} & (
+  | {
+      numMerges: number;
+      tokenizerType: 'BPE';
     }
+  | {
+      tokenizerType: 'Char';
+    }
+);
+
+export type TokenizerWorkerResponse =
+  | {
+      progress: number;
+      type: 'progress';
+    }
+  | {
+      error: string;
+      type: 'error';
+    }
+  | {
+      tokenizer:
+        | {
+            serializedData: BPETokenizerSerializedData;
+            type: 'BPE';
+          }
+        | {
+            serializedData: CharTokenizerSerializedData;
+            type: 'Char';
+          };
+      type: 'complete';
+    };
+
+self.onmessage = (event: MessageEvent<TokenizerWorkerMessage>) => {
+  const createEvent = event.data;
+
+  try {
+    let tokenizer: Tokenizer;
+
+    if (createEvent.tokenizerType === 'BPE') {
+      // Create BPE tokenizer with progress updates
+      self.postMessage({ type: 'progress', progress: 0 });
+
+      tokenizer = new BPETokenizer(createEvent.fileContent, createEvent.numMerges, (progress: number) => {
+        self.postMessage({ type: 'progress', progress: Math.floor(progress * 100) });
+      });
+
+      self.postMessage({ type: 'progress', progress: 100 });
+    } else {
+      // CharTokenizer is fast, no need for progress
+      self.postMessage({ type: 'progress', progress: 50 });
+      tokenizer = new CharTokenizer(createEvent.fileContent);
+      self.postMessage({ type: 'progress', progress: 100 });
+    }
+
+    // Send the completed tokenizer data
+    self.postMessage({
+      type: 'complete',
+      tokenizer: {
+        type: createEvent.tokenizerType,
+        serializedData: tokenizer.getSerializedData(),
+      },
+    });
+  } catch (error) {
+    self.postMessage({
+      type: 'error',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
   }
 };

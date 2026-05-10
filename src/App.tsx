@@ -215,14 +215,15 @@ function App() {
     </div>
   );
 
-  const renderTokenizerStep = () => (
-    <TokenizerSetup
-      fileContent={selectedFile.content}
-      fileName={selectedFile.name}
-      onBack={handleBackToInput}
-      onComplete={handleTokenizerComplete}
-    />
-  );
+  const renderTokenizerStep = () =>
+    selectedFile && (
+      <TokenizerSetup
+        fileContent={selectedFile.content}
+        fileName={selectedFile.name}
+        onBack={handleBackToInput}
+        onComplete={handleTokenizerComplete}
+      />
+    );
 
   const renderModelStep = () => (
     <div>

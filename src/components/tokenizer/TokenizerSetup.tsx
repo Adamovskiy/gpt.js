@@ -1,17 +1,16 @@
 import { ChevronLeft, ChevronRight, Loader } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import type { Tokenizer } from '@/llm/types.ts';
+import type { TokenizerWorkerMessage, TokenizerWorkerResponse } from '@/workers/tokenizer.worker.ts';
+
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { BPETokenizer } from '@/llm/tokenizers/BPETokenizer.ts';
+import { CharTokenizer } from '@/llm/tokenizers/CharTokenizer.ts';
 
-import type { Tokenizer } from '../../llm/types';
-import type { TokenizerWorkerMessage, TokenizerWorkerResponse } from '../../workers/tokenizer.worker.ts';
-
-import { BPETokenizer } from '../../llm/tokenizers/BPETokenizer';
-import { CharTokenizer } from '../../llm/tokenizers/CharTokenizer';
-import TokenizerWorker from '../../workers/tokenizer.worker.ts?worker';
 import { TokenizerDemo } from './TokenizerDemo';
 import { Vocabulary } from './Vocabulary';
 
@@ -63,35 +62,36 @@ export function TokenizerSetup({ fileContent, fileName, onComplete, onBack }: To
     setTokenizer(null);
 
     // Create and setup worker
-    const worker = new TokenizerWorker();
+
+    const worker = new Worker(new URL('@/workers/tokenizer.worker.ts', import.meta.url), { type: 'module' });
     workerRef.current = worker;
 
     worker.onmessage = (event: MessageEvent<TokenizerWorkerResponse>) => {
-      const { type, progress: workerProgress, tokenizer: tokenizerData, error: workerError } = event.data;
+      const workerResponse = event.data;
 
-      if (type === 'progress') {
-        setProgress(workerProgress || 0);
-      } else if (type === 'complete') {
+      if (workerResponse.type === 'progress') {
+        setProgress(workerResponse.progress);
+      } else if (workerResponse.type === 'complete') {
         setProgress(100);
         setIsCreating(false);
 
-        // Recreate the tokenizer instance from worker data
-        if (tokenizerData) {
-          let newTokenizer: Tokenizer;
-          if (tokenizerData.type === 'BPE') {
-            newTokenizer = new BPETokenizer(tokenizerData.data.fileContent, tokenizerData.data.numMerges);
-          } else {
-            newTokenizer = new CharTokenizer(tokenizerData.data.fileContent);
-          }
-          setTokenizer(newTokenizer);
-          setCurrentStep('introspect');
+        // Deserialize the tokenizer instance from worker data
+        const tokenizer = workerResponse.tokenizer;
+        let newTokenizer: Tokenizer;
+        if (tokenizer.type === 'BPE') {
+          newTokenizer = BPETokenizer.fromSerializedData(tokenizer.serializedData);
+        } else {
+          newTokenizer = CharTokenizer.fromSerializedData(tokenizer.serializedData);
         }
+        setTokenizer(newTokenizer);
+        setCurrentStep('introspect');
 
         worker.terminate();
         workerRef.current = null;
-      } else if (type === 'error') {
+      } else {
+        // if (workerResponse.type === 'error')
         setIsCreating(false);
-        setError(workerError || 'Unknown error occurred');
+        setError(workerResponse.error);
         worker.terminate();
         workerRef.current = null;
       }
@@ -107,9 +107,8 @@ export function TokenizerSetup({ fileContent, fileName, onComplete, onBack }: To
     // Send message to worker
     const message: TokenizerWorkerMessage = {
       type: 'create',
-      tokenizerType,
       fileContent,
-      numMerges: tokenizerType === 'BPE' ? numMerges : undefined,
+      ...(tokenizerType === 'BPE' ? { tokenizerType, numMerges } : { tokenizerType }),
     };
 
     worker.postMessage(message);
@@ -131,7 +130,7 @@ export function TokenizerSetup({ fileContent, fileName, onComplete, onBack }: To
       <div className="space-y-6">
         <div>
           <h3 className="text-lg font-semibold">Create Tokenizer</h3>
-          <p className="text-sm text-muted-foreground">Configure and create a tokenizer for "{fileName}"</p>
+          <p className="text-sm text-muted-foreground">Configure and create a tokenizer for &#34;{fileName}&#34;</p>
         </div>
 
         <div className="space-y-4">
@@ -179,7 +178,10 @@ export function TokenizerSetup({ fileContent, fileName, onComplete, onBack }: To
                   max="1000"
                   min="1"
                   onChange={(e) => {
-                    setNumMerges(parseInt(e.target.value) || 50);
+                    const value = parseInt(e.target.value);
+                    if (!isNaN(value)) {
+                      setNumMerges(value);
+                    }
                   }}
                   type="number"
                   value={numMerges}

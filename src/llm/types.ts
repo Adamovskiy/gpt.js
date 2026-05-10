@@ -5,11 +5,12 @@ export interface Parameter {
   data: Tensor2d | Tensor1d;
 }
 
-export interface Tokenizer {
+export interface Tokenizer<T = unknown> {
   encode(str: string): Tensor1d;
   decode(indices: Tensor1d): string;
   getVocabSize(): number;
   getVocab(): string[];
+  getSerializedData(): T;
 }
 
 export interface Trainable {
