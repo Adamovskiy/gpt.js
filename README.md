@@ -138,6 +138,9 @@ This project helps you understand:
 - [ ] Tensor operations visualization from `tensorOps.ts`
 - [ ] Unification and improvement of model configuration steps UX
 - [ ] SDG optimizer for an arbitrary parameters model
+- [ ] Make blockSize and batchSize configurable
+- [ ] Implement serialization of all optimizers and models
+- [ ] Stream inference output token by token
 
 ## Contributing
 

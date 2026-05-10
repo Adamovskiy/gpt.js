@@ -2,10 +2,21 @@ import type { Tensor1d, Tensor2d } from '../tensorOps.ts';
 import type { Trainable } from '../types.ts';
 import type { Optimizer } from './utils.ts';
 
+export interface UniversalAdamWOptimizerSerializedData {
+  beta1: number;
+  beta2: number;
+  eps: number;
+  learningRate: number;
+  weightDecay: number;
+  stepCount: number;
+  momentum: Record<string, Tensor2d | Tensor1d>;
+  velocity: Record<string, Tensor2d | Tensor1d>;
+}
+
 export class UniversalAdamWOptimizer implements Optimizer {
-  private readonly beta1: number = 0.9;
-  private readonly beta2: number = 0.999;
-  private readonly eps: number = 1e-8;
+  private readonly beta1: number;
+  private readonly beta2: number;
+  private readonly eps: number;
 
   private readonly learningRate: number;
 
@@ -17,9 +28,9 @@ export class UniversalAdamWOptimizer implements Optimizer {
 
   private velocity: Record<string, Tensor2d | Tensor1d> = {};
 
-  private readonly weightDecay: number = 0.01;
+  private readonly weightDecay: number;
 
-  constructor(model: Trainable, learningRate: number, beta1 = 0.9, beta2 = 0.999, eps = 1e-8, weightDecay = 0.01) {
+  constructor(model: Trainable, learningRate: number, beta1: number, beta2: number, eps: number, weightDecay: number) {
     this.weightDecay = weightDecay;
     this.eps = eps;
     this.beta2 = beta2;
@@ -41,6 +52,36 @@ export class UniversalAdamWOptimizer implements Optimizer {
         this.velocity[param.name] = new Array<number>(data.length).fill(0);
       }
     }
+  }
+
+  static fromSerializedData(data: UniversalAdamWOptimizerSerializedData, model: Trainable): UniversalAdamWOptimizer {
+    const optimizer = new UniversalAdamWOptimizer(
+      model,
+      data.learningRate,
+      data.beta1,
+      data.beta2,
+      data.eps,
+      data.weightDecay,
+    );
+
+    optimizer.stepCount = data.stepCount;
+    optimizer.momentum = data.momentum;
+    optimizer.velocity = data.velocity;
+
+    return optimizer;
+  }
+
+  getSerializedData(): UniversalAdamWOptimizerSerializedData {
+    return {
+      beta1: this.beta1,
+      beta2: this.beta2,
+      eps: this.eps,
+      learningRate: this.learningRate,
+      weightDecay: this.weightDecay,
+      stepCount: this.stepCount,
+      momentum: this.momentum,
+      velocity: this.velocity,
+    };
   }
 
   async train(contextTokens: Tensor2d, targets: Tensor2d): Promise<number> {
@@ -100,6 +141,6 @@ export class UniversalAdamWOptimizer implements Optimizer {
       }
     }
 
-    return loss || 0;
+    return loss ?? 0;
   }
 }

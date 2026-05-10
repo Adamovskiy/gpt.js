@@ -1,0 +1,227 @@
+import { Loader } from 'lucide-react';
+import {
+  type Dispatch,
+  type SetStateAction,
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
+
+import type { SelectedFile } from '@/components/input/InputConfig.tsx';
+import type { Optimizer } from '@/llm/optimizers/utils.ts';
+import type { LanguageModel, Tokenizer } from '@/llm/types.ts';
+import type { TrainWorkerMessage, TrainWorkerResponse } from '@/workers/train.worker.ts';
+
+import { Button } from '@/components/ui/button.tsx';
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart.tsx';
+import { Input } from '@/components/ui/input.tsx';
+import { Label } from '@/components/ui/label.tsx';
+import { errorMessage } from '@/lib/utils.ts';
+import { randomOutputLoss } from '@/llm/models/utils.ts';
+
+export function ModelTraining({
+  tokenizer,
+  model,
+  selectedFile,
+  optimizer,
+  lossChartData,
+  setLossChartData,
+  setModel,
+  setOptimizer,
+}: {
+  lossChartData: number[];
+  model: LanguageModel;
+  optimizer: Optimizer;
+  selectedFile: SelectedFile;
+  setLossChartData: Dispatch<SetStateAction<number[]>>;
+  setModel: Dispatch<SetStateAction<LanguageModel | null>>;
+  setOptimizer: Dispatch<SetStateAction<Optimizer | null | undefined>>;
+  tokenizer: Tokenizer;
+}) {
+  const [iterations, setIterations] = useState(100);
+  const [avgIterationTime, setAvgIterationTime] = useState<number | null>(null);
+  const [trainingInProgress, setTrainingInProgress] = useState(false);
+
+  const bufferRef = useRef<number[]>([]);
+  const rafRef = useRef<number | null>(null);
+  const workerRef = useRef<Worker | null>(null);
+
+  const randomOutputLossValue = useMemo(() => {
+    return randomOutputLoss(tokenizer.getVocabSize());
+  }, [tokenizer]);
+
+  const trainModel = useCallback(() => {
+    if (!workerRef.current) {
+      return;
+    }
+
+    setTrainingInProgress(true);
+    setAvgIterationTime(null);
+
+    // Don't clear chart data - let it accumulate
+    bufferRef.current = [];
+
+    try {
+      // Prepare training data
+      const data = tokenizer.encode(selectedFile.content);
+      const trainData = Array.from(data);
+
+      console.log(`Training ${model.constructor.name} for ${iterations} iterations...`);
+
+      // Check if model and optimizer have serialization methods
+      if (!('getSerializedData' in model) || !('getSerializedData' in optimizer)) {
+        throw new Error('Model or optimizer does not support serialization for worker training');
+      }
+
+      // Send training task to worker with serialized data
+      const message: TrainWorkerMessage = {
+        type: 'train',
+        iterations,
+        trainData,
+        modelData: {
+          type: 'GPTModel',
+          serializedData: (model as { getSerializedData(): unknown }).getSerializedData(),
+        },
+        optimizerData: {
+          type: 'UniversalAdamWOptimizer',
+          serializedData: (optimizer as { getSerializedData(): unknown }).getSerializedData(),
+        },
+        tokenizerData: {
+          type: tokenizer.constructor.name,
+          serializedData: tokenizer.getSerializedData(),
+        },
+      };
+
+      workerRef.current.postMessage(message);
+    } catch (error) {
+      console.error('Training failed:', error);
+      alert(`Training failed: ${errorMessage(error)}`);
+      setTrainingInProgress(false);
+    }
+  }, [selectedFile, tokenizer, model, optimizer, iterations]);
+
+  useEffect(() => {
+    const worker = new Worker(new URL('@/workers/train.worker.ts', import.meta.url), { type: 'module' });
+
+    worker.onmessage = (event: MessageEvent<TrainWorkerResponse>) => {
+      const response = event.data;
+
+      if (response.type === 'loss') {
+        bufferRef.current.push(response.value);
+
+        rafRef.current ??= requestAnimationFrame(() => {
+          rafRef.current = null;
+          setLossChartData((prev) => [...prev, ...bufferRef.current]);
+          bufferRef.current = [];
+        });
+      } else if (response.type === 'status') {
+        console.log('Worker status:', response.message);
+        if (response.message.includes('completed')) {
+          setTrainingInProgress(false);
+        }
+      } else if (response.type === 'error') {
+        console.error('Worker error:', response.message);
+        setTrainingInProgress(false);
+        alert(`Training error: ${response.message}`);
+      } else {
+        // if (response.type === 'completed')
+        console.log('Training completed, updating model and optimizer with trained versions');
+
+        // Import both classes and restore trained model and optimizer
+        void Promise.all([
+          import('@/llm/models/GPTModel.ts'),
+          import('@/llm/optimizers/UniversalAdamWOptimizer.ts'),
+        ]).then(([{ GPTModel }, { UniversalAdamWOptimizer }]) => {
+          const trainedModel = GPTModel.fromSerializedData(response.modelData.serializedData as never);
+          const trainedOptimizer = UniversalAdamWOptimizer.fromSerializedData(
+            response.optimizerData.serializedData as never,
+            trainedModel,
+          );
+
+          setModel(trainedModel);
+          setOptimizer(trainedOptimizer);
+          setAvgIterationTime(response.avgIterationTime);
+        });
+      }
+    };
+
+    workerRef.current = worker;
+
+    return () => {
+      worker.terminate();
+
+      if (rafRef.current != null) {
+        cancelAnimationFrame(rafRef.current);
+      }
+    };
+  }, [setLossChartData, setModel, setOptimizer]);
+
+  const deferredPoints = useDeferredValue(lossChartData);
+
+  return (
+    <>
+      <div className="space-y-4">
+        <Label>
+          Training Iterations
+          <Input
+            className="mt-1"
+            onChange={(e) => {
+              setIterations(parseInt(e.target.value));
+            }}
+            type={'number'}
+            value={iterations}
+          />
+        </Label>
+
+        <div className="flex items-center gap-4">
+          <Button
+            disabled={trainingInProgress}
+            onClick={() => {
+              trainModel();
+            }}
+          >
+            {trainingInProgress && <Loader className="mr-2 animate-spin" />}
+            {trainingInProgress ? 'Training...' : 'Train Model'}
+          </Button>
+
+          {avgIterationTime && (
+            <span className="text-sm text-muted-foreground">Avg: {avgIterationTime.toFixed(1)}ms/iter</span>
+          )}
+        </div>
+      </div>
+
+      <ChartContainer
+        config={{
+          loss: {
+            label: 'Loss',
+            color: 'var(--chart-1)',
+          },
+          randomOutput: {
+            label: 'Random output loss',
+            color: 'var(--chart-2)',
+          },
+        }}
+      >
+        <LineChart
+          accessibilityLayer
+          data={deferredPoints.map((loss, iteration) => ({
+            iteration,
+            loss,
+            randomOutput: randomOutputLossValue,
+          }))}
+        >
+          <CartesianGrid vertical={false} />
+          <XAxis axisLine={false} dataKey="iteration" max={iterations} min={0} tickLine={false} tickMargin={8} />
+          <YAxis max={randomOutputLossValue * 1.2} min={0} />
+          <ChartTooltip content={<ChartTooltipContent hideLabel />} cursor={false} />
+          <Line dataKey="loss" dot={false} stroke="var(--chart-1)" strokeWidth={1} type="linear" />
+          <Line dataKey="randomOutput" dot={false} stroke="var(--chart-2)" strokeWidth={1} type="linear" />
+        </LineChart>
+      </ChartContainer>
+    </>
+  );
+}

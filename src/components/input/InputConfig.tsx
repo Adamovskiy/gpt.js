@@ -148,7 +148,7 @@ export function InputConfig({
                 selectInputSource('war_and_peace');
               }}
               selected={inputSource === 'war_and_peace'}
-              subtitle="A novel by Leo Tolstoy"
+              subtitle="A novel by Lev Tolstoy"
               title="war_and_peace.txt"
               variant="preset"
             />

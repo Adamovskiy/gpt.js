@@ -1,5 +1,30 @@
 import type { LanguageModel, Parameter } from '../types.ts';
 
+export interface GPTModelSerializedData {
+  vocabSize: number;
+  numberEmbeddingDimensions: number;
+  contextSize: number;
+  numHeads: number;
+  numLayers: number;
+  tokenEmbeddingTable: Tensor2d;
+  positionEmbeddingTable: Tensor2d;
+  blocks: {
+    feedForward: {
+      linear1: { bias: Tensor1d; weights: Tensor2d };
+      linear2: { bias: Tensor1d; weights: Tensor2d };
+    };
+    ln1: { beta: Tensor1d; gamma: Tensor1d };
+    ln2: { beta: Tensor1d; gamma: Tensor1d };
+    multiHeadAttention: {
+      key: { weights: Tensor2d };
+      query: { weights: Tensor2d };
+      value: { weights: Tensor2d };
+    }[];
+  }[];
+  lnFinal: { beta: Tensor1d; gamma: Tensor1d };
+  languageModelingHead: { bias: Tensor1d; weights: Tensor2d };
+}
+
 import { random } from '../../lib/random.ts';
 import {
   matrixMultiply,
@@ -46,6 +71,77 @@ export class GPTModel implements LanguageModel {
     this.blocks = Array.from({ length: numLayers }, () => new TransformerBlock(numberEmbeddingDimensions, numHeads));
     this.lnFinal = new LayerNorm(numberEmbeddingDimensions);
     this.languageModelingHead = new Linear(numberEmbeddingDimensions, vocabSize);
+  }
+
+  static fromSerializedData(data: GPTModelSerializedData): GPTModel {
+    const model = new GPTModel(
+      data.vocabSize,
+      data.numberEmbeddingDimensions,
+      data.contextSize,
+      data.numHeads,
+      data.numLayers,
+    );
+
+    // Restore embeddings
+    model.tokenEmbeddingTable.splice(0, model.tokenEmbeddingTable.length, ...data.tokenEmbeddingTable);
+    model.positionEmbeddingTable.splice(0, model.positionEmbeddingTable.length, ...data.positionEmbeddingTable);
+
+    // Restore blocks
+    data.blocks.forEach((blockData, i) => {
+      const block = model.blocks[i];
+
+      // Restore layer norms
+      block.ln1.gamma.splice(0, block.ln1.gamma.length, ...blockData.ln1.gamma);
+      block.ln1.beta.splice(0, block.ln1.beta.length, ...blockData.ln1.beta);
+      block.ln2.gamma.splice(0, block.ln2.gamma.length, ...blockData.ln2.gamma);
+      block.ln2.beta.splice(0, block.ln2.beta.length, ...blockData.ln2.beta);
+
+      // Restore attention heads
+      blockData.multiHeadAttention.forEach((headData, j) => {
+        const head = block.multiHeadAttention.heads[j];
+        head.key.weights.splice(0, head.key.weights.length, ...headData.key.weights);
+        head.query.weights.splice(0, head.query.weights.length, ...headData.query.weights);
+        head.value.weights.splice(0, head.value.weights.length, ...headData.value.weights);
+      });
+
+      // Restore feedforward
+      block.feedForward.linear1.weights.splice(
+        0,
+        block.feedForward.linear1.weights.length,
+        ...blockData.feedForward.linear1.weights,
+      );
+      block.feedForward.linear1.bias.splice(
+        0,
+        block.feedForward.linear1.bias.length,
+        ...blockData.feedForward.linear1.bias,
+      );
+      block.feedForward.linear2.weights.splice(
+        0,
+        block.feedForward.linear2.weights.length,
+        ...blockData.feedForward.linear2.weights,
+      );
+      block.feedForward.linear2.bias.splice(
+        0,
+        block.feedForward.linear2.bias.length,
+        ...blockData.feedForward.linear2.bias,
+      );
+    });
+
+    // Restore final layer norm and LM head
+    model.lnFinal.gamma.splice(0, model.lnFinal.gamma.length, ...data.lnFinal.gamma);
+    model.lnFinal.beta.splice(0, model.lnFinal.beta.length, ...data.lnFinal.beta);
+    model.languageModelingHead.weights.splice(
+      0,
+      model.languageModelingHead.weights.length,
+      ...data.languageModelingHead.weights,
+    );
+    model.languageModelingHead.bias.splice(
+      0,
+      model.languageModelingHead.bias.length,
+      ...data.languageModelingHead.bias,
+    );
+
+    return model;
   }
 
   computeGradients(contextTokens: Tensor2d, targets: Tensor2d): Record<string, Tensor2d | Tensor1d> {
@@ -305,5 +401,32 @@ export class GPTModel implements LanguageModel {
     });
 
     return params;
+  }
+
+  getSerializedData(): GPTModelSerializedData {
+    return {
+      vocabSize: this.tokenEmbeddingTable.length,
+      numberEmbeddingDimensions: this.tokenEmbeddingTable[0].length,
+      contextSize: this.contextSize,
+      numHeads: this.blocks[0].multiHeadAttention.heads.length,
+      numLayers: this.blocks.length,
+      tokenEmbeddingTable: this.tokenEmbeddingTable,
+      positionEmbeddingTable: this.positionEmbeddingTable,
+      blocks: this.blocks.map((block) => ({
+        ln1: { gamma: block.ln1.gamma, beta: block.ln1.beta },
+        ln2: { gamma: block.ln2.gamma, beta: block.ln2.beta },
+        multiHeadAttention: block.multiHeadAttention.heads.map((head) => ({
+          key: { weights: head.key.weights },
+          query: { weights: head.query.weights },
+          value: { weights: head.value.weights },
+        })),
+        feedForward: {
+          linear1: { weights: block.feedForward.linear1.weights, bias: block.feedForward.linear1.bias },
+          linear2: { weights: block.feedForward.linear2.weights, bias: block.feedForward.linear2.bias },
+        },
+      })),
+      lnFinal: { gamma: this.lnFinal.gamma, beta: this.lnFinal.beta },
+      languageModelingHead: { weights: this.languageModelingHead.weights, bias: this.languageModelingHead.bias },
+    };
   }
 }
