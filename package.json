@@ -10,7 +10,7 @@
     "test": "node --import tsx/esm --test 'src/**/*.test.ts'",
     "bench": "tsx ./src/bench.ts",
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "vite build",
     "preview": "vite preview"
   },
   "dependencies": {
