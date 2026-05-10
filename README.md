@@ -137,6 +137,7 @@ This project helps you understand:
 - [ ] Optimizer operation visualization
 - [ ] Tensor operations visualization from `tensorOps.ts`
 - [ ] Unification and improvement of model configuration steps UX
+- [ ] SDG optimizer for an arbitrary parameters model
 
 ## Contributing
 
