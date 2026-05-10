@@ -46,6 +46,7 @@ export default defineConfig(
       '@typescript-eslint/restrict-template-expressions': ['off', { allowNumber: true }],
       ...reactHooksPlugin.configs.recommended.rules,
       ...tailwindcssPlugin.configs['recommended-error'].rules,
+      'better-tailwindcss/enforce-consistent-line-wrapping': ['off'],
       'import/no-extraneous-dependencies': [
         'error',
         {

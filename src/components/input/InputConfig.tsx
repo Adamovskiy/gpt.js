@@ -1,13 +1,12 @@
 import { FileText, Upload } from 'lucide-react';
-import { type ChangeEvent, useCallback, useState } from 'react';
+import { useCallback, useState } from 'react';
 
+import { InputPreview } from '@/components/input/InputPreview.tsx';
+import { Button } from '@/components/ui/button.tsx';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { FileInput } from '@/components/ui/fileInput.tsx';
+import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
-
-import { Button } from '../ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Input } from '../ui/input';
-import { Label } from '../ui/label';
-import { InputPreview } from './InputPreview.tsx';
 
 type InputSource = 'war_and_peace' | 'shakespear' | 'upload';
 
@@ -16,20 +15,53 @@ export interface SelectedFile {
   name: string;
 }
 
+function InputOptionButton({
+  variant,
+  disabled,
+  selected,
+  onSelect,
+  title,
+  subtitle,
+}: {
+  disabled: boolean;
+  onSelect: () => void;
+  selected: boolean;
+  subtitle: string;
+  title: string;
+  variant: 'upload' | 'preset';
+}) {
+  const Icon = variant === 'upload' ? Upload : FileText;
+  return (
+    <Button
+      className={cn('flex h-auto items-center justify-start gap-2 p-3 text-left', selected && `ring-2 ring-primary`)}
+      disabled={disabled}
+      onClick={() => {
+        onSelect();
+      }}
+      variant={selected ? 'default' : 'outline'}
+    >
+      <Icon className="size-4" />
+      <div className="flex flex-col">
+        <span className="font-medium">{title}</span>
+        <span className="text-xs opacity-70">{subtitle}</span>
+      </div>
+    </Button>
+  );
+}
+
 export function InputConfig({
   selectedFile,
   onSelectedFileChange,
 }: {
-  onSelectedFileChange: (selectedFile: SelectedFile) => void;
-  selectedFile: SelectedFile | undefined;
+  onSelectedFileChange: (selectedFile: SelectedFile | null) => void;
+  selectedFile: SelectedFile | null;
 }) {
   const [inputSource, setInputSource] = useState<InputSource>();
 
   const [isLoading, setIsLoading] = useState(false);
 
   const handleCustomFileUpload = useCallback(
-    async (event: ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.[0];
+    async (file: File | undefined) => {
       if (!file) return;
 
       if (!file.name.endsWith('.txt')) {
@@ -86,13 +118,14 @@ export function InputConfig({
 
   const selectInputSource = useCallback(
     (source: InputSource) => {
-      if (source !== 'upload') {
-        void handlePresetFileUpload(source);
-      } else {
+      if (source === 'upload') {
+        onSelectedFileChange(null);
         setInputSource(source);
+      } else {
+        void handlePresetFileUpload(source);
       }
     },
-    [handlePresetFileUpload],
+    [handlePresetFileUpload, onSelectedFileChange],
   );
 
   return (
@@ -109,77 +142,50 @@ export function InputConfig({
               sm:grid-cols-3
             "
           >
-            <Button
-              className={cn(
-                'flex h-auto items-center justify-start gap-2 p-3 text-left',
-                inputSource === 'war_and_peace' && 'ring-2 ring-primary',
-              )}
+            <InputOptionButton
               disabled={isLoading}
-              onClick={() => handlePresetFileUpload('war_and_peace')}
-              variant={inputSource === 'war_and_peace' ? 'default' : 'outline'}
-            >
-              <FileText className="size-4" />
-              <div className="flex flex-col">
-                <span className="font-medium">war_and_peace.txt</span>
-                <span className="text-xs opacity-70">Russian/French text</span>
-              </div>
-            </Button>
+              onSelect={() => {
+                selectInputSource('war_and_peace');
+              }}
+              selected={inputSource === 'war_and_peace'}
+              subtitle="A novel by Leo Tolstoy"
+              title="war_and_peace.txt"
+              variant="preset"
+            />
 
-            <Button
-              className={cn(
-                'flex h-auto items-center justify-start gap-2 p-3 text-left',
-                inputSource === 'shakespear' && 'ring-2 ring-primary',
-              )}
+            <InputOptionButton
               disabled={isLoading}
-              onClick={() => handlePresetFileUpload('shakespear')}
-              variant={inputSource === 'shakespear' ? 'default' : 'outline'}
-            >
-              <FileText className="size-4" />
-              <div className="flex flex-col">
-                <span className="font-medium">shakespear.txt</span>
-                <span className="text-xs opacity-70">English text</span>
-              </div>
-            </Button>
+              onSelect={() => {
+                selectInputSource('shakespear');
+              }}
+              selected={inputSource === 'shakespear'}
+              subtitle="tiny_shakespeare dataset"
+              title="shakespear.txt"
+              variant="preset"
+            />
 
-            <Button
-              className={cn(
-                'flex h-auto items-center justify-start gap-2 p-3 text-left',
-                inputSource === 'upload' && 'ring-2 ring-primary',
-              )}
+            <InputOptionButton
               disabled={isLoading}
-              onClick={() => {
+              onSelect={() => {
                 selectInputSource('upload');
               }}
-              variant={inputSource === 'upload' ? 'default' : 'outline'}
-            >
-              <Upload className="size-4" />
-              <div className="flex flex-col">
-                <span className="font-medium">Upload file</span>
-                <span className="text-xs opacity-70">Custom .txt</span>
-              </div>
-            </Button>
+              selected={inputSource === 'upload'}
+              subtitle="Custom .txt"
+              title="Upload file"
+              variant="upload"
+            />
           </div>
         </div>
 
         {inputSource === 'upload' && (
-          <div
-            className="
-              space-y-2 rounded-lg border-2 border-dashed
-              border-muted-foreground/25 p-4
-            "
-          >
-            <Label className="text-sm font-medium" htmlFor="file-upload">
-              Select .txt file:
-            </Label>
-            <Input
-              accept=".txt"
-              className="cursor-pointer"
-              disabled={isLoading}
-              id="file-upload"
-              onChange={handleCustomFileUpload}
-              type="file"
-            />
-          </div>
+          <FileInput
+            accept=".txt"
+            disabled={isLoading}
+            label="Select .txt file:"
+            onChange={(file) => {
+              void handleCustomFileUpload(file);
+            }}
+          />
         )}
 
         {selectedFile && <InputPreview fileContent={selectedFile.content} fileName={selectedFile.name} />}

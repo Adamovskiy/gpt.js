@@ -2,12 +2,12 @@ import { ChevronLeft, Loader } from 'lucide-react';
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
 
+import { InputConfig, type SelectedFile } from '@/components/input/InputConfig.tsx';
 import { TokenizerSetup } from '@/components/tokenizer/TokenizerSetup.tsx';
 import { Button } from '@/components/ui/button.tsx';
 
 import type { LanguageModel, Tokenizer } from './llm/types.ts';
 
-import { InputConfig, type SelectedFile } from './components/input/InputConfig.tsx';
 import { ModelConfig } from './components/model/ModelConfig.tsx';
 import { OptimizerConfig } from './components/optimizer/OptimizerConfig.tsx';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from './components/ui/chart.tsx';
@@ -32,11 +32,10 @@ function App() {
   const [initialString, setInitialString] = useState('');
   const [generateOutput, setGenerateOutput] = useState<string>();
   const [avgIterationTime, setAvgIterationTime] = useState<number | null>(null);
-  const [fileContent, setFileContent] = useState<string>('');
-  const [fileName, setFileName] = useState<string>('');
+  const [selectedFile, setSelectedFile] = useState<SelectedFile | null>(null);
 
   useEffect(() => {
-    // Init RNG on app mount
+    // Init RNG on app mount with a fixed seed to ensure reproducible results
     seed(42);
   }, []);
 
@@ -53,9 +52,8 @@ function App() {
     setLossChartData([]);
   }, []);
 
-  const handleContentLoad = useCallback(({ content, name }: SelectedFile) => {
-    setFileContent(content);
-    setFileName(name);
+  const handleContentLoad = useCallback((selected: SelectedFile | null) => {
+    setSelectedFile(selected);
     // Reset tokenizer when content changes
     setTokenizer(undefined);
     setModel(undefined);
@@ -65,10 +63,10 @@ function App() {
   }, []);
 
   const handleProceedToTokenizer = useCallback(() => {
-    if (fileContent) {
+    if (selectedFile) {
       setCurrentStep('tokenizer');
     }
-  }, [fileContent]);
+  }, [selectedFile]);
 
   const handleModelComplete = useCallback((newModel: LanguageModel) => {
     setModel(newModel);
@@ -144,13 +142,13 @@ function App() {
   }, [tokenizer]);
 
   const trainModel = useCallback(async () => {
-    if (!tokenizer || !model || !optimizer) return;
+    if (!selectedFile || !tokenizer || !model || !optimizer) return;
 
     setTrainingInProgress(true);
 
     try {
       // Prepare training data
-      const data = tokenizer.encode(fileContent);
+      const data = tokenizer.encode(selectedFile.content);
       const splitIndex = Math.floor(0.9 * data.length);
       const trainData = data.slice(0, splitIndex);
 
@@ -191,7 +189,7 @@ function App() {
     } finally {
       setTrainingInProgress(false);
     }
-  }, [tokenizer, model, iterations, optimizer, randomOutputLossValue]);
+  }, [selectedFile, tokenizer, model, optimizer, iterations]);
 
   const generate = useCallback(async () => {
     if (!tokenizer || !model) return;
@@ -208,8 +206,8 @@ function App() {
 
   const renderInputStep = () => (
     <div className="space-y-4">
-      <InputConfig onSelectedFileChange={handleContentLoad} selectedFile={{ content: fileContent, name: fileName }} />
-      {fileContent && (
+      <InputConfig onSelectedFileChange={handleContentLoad} selectedFile={selectedFile} />
+      {selectedFile && (
         <div className="mt-4">
           <Button onClick={handleProceedToTokenizer}>Next: Create Tokenizer</Button>
         </div>
@@ -219,8 +217,8 @@ function App() {
 
   const renderTokenizerStep = () => (
     <TokenizerSetup
-      fileContent={fileContent}
-      fileName={fileName}
+      fileContent={selectedFile.content}
+      fileName={selectedFile.name}
       onBack={handleBackToInput}
       onComplete={handleTokenizerComplete}
     />
