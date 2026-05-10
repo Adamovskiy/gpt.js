@@ -9,16 +9,19 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from './components/
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
 import { TokenizerDemo } from '@/components/tokenizer/TokenizerDemo.tsx';
 import { Vocabulary } from '@/components/tokenizer/Vocabulary.tsx';
+import { TokenizerSetup } from '@/components/tokenizer/TokenizerSetup.tsx';
 import { ModelConfig } from './components/model/ModelConfig.tsx';
 import type { LanguageModel, Tokenizer } from './llm/types.ts';
 import { Label } from './components/ui/label.tsx';
 import { Input } from './components/ui/input.tsx';
 import { OptimizerConfig } from './components/optimizer/OptimizerConfig.tsx';
 import TrainWorker from './train.worker.ts?worker';
-import { BPETokenizer } from './llm/tokenizers/BPETokenizer.ts';
 import { InputPreview, type InputSource } from './components/input/InputPreview.tsx';
 
+type AppStep = 'input' | 'tokenizer' | 'model';
+
 function App() {
+  const [currentStep, setCurrentStep] = useState<AppStep>('input');
   const [lossChartData, setLossChartData] = useState<number[]>([]);
   const [tokenizer, setTokenizer] = useState<Tokenizer | undefined>();
   const [model, setModel] = useState<LanguageModel | undefined>();
@@ -37,10 +40,18 @@ function App() {
     seed(42);
   }, []);
 
-  const initTokenizer = useCallback(() => {
-    if (tokenizer || !fileContent) return;
-    setTokenizer(new BPETokenizer(fileContent));
-  }, [tokenizer, fileContent]);
+  const handleTokenizerComplete = useCallback((newTokenizer: Tokenizer) => {
+    setTokenizer(newTokenizer);
+    setCurrentStep('model');
+  }, []);
+
+  const handleBackToInput = useCallback(() => {
+    setCurrentStep('input');
+    setTokenizer(undefined);
+    setModel(undefined);
+    setOptimizer(undefined);
+    setLossChartData([]);
+  }, []);
 
   const handleContentLoad = useCallback((content: string, name: string) => {
     setFileContent(content);
@@ -50,6 +61,17 @@ function App() {
     setModel(undefined);
     setOptimizer(undefined);
     setLossChartData([]);
+    setCurrentStep('input');
+  }, []);
+
+  const handleProceedToTokenizer = useCallback(() => {
+    if (fileContent) {
+      setCurrentStep('tokenizer');
+    }
+  }, [fileContent]);
+
+  const handleProceedToModel = useCallback(() => {
+    setCurrentStep('model');
   }, []);
 
   const bufferRef = useRef<number[]>([]);
@@ -175,26 +197,37 @@ function App() {
     }
   }, [tokenizer, model, initialString]);
 
-  return (
-    <main className="max-w-3xl mx-auto px-2 py-4 flex flex-col gap-4">
-      <div>
-        <InputPreview
-          selectedSource={inputSource}
-          onSourceChange={setInputSource}
-          fileContent={fileContent}
-          fileName={fileName}
-          onContentLoad={handleContentLoad}
-        />
-        {fileContent && !tokenizer && (
-          <div className="mt-4">
-            <Button onClick={() => initTokenizer()}>Init tokenizer</Button>
-          </div>
-        )}
-      </div>
+  const renderInputStep = () => (
+    <div className="space-y-4">
+      <InputPreview
+        selectedSource={inputSource}
+        onSourceChange={setInputSource}
+        fileContent={fileContent}
+        fileName={fileName}
+        onContentLoad={handleContentLoad}
+      />
+      {fileContent && (
+        <div className="mt-4">
+          <Button onClick={handleProceedToTokenizer}>Next: Create Tokenizer</Button>
+        </div>
+      )}
+    </div>
+  );
+
+  const renderTokenizerStep = () => (
+    <TokenizerSetup
+      fileContent={fileContent}
+      fileName={fileName}
+      onComplete={handleTokenizerComplete}
+      onBack={handleBackToInput}
+    />
+  );
+
+
+  const renderModelStep = () => (
+    <div className="space-y-4">
       {tokenizer && (
         <>
-          <Vocabulary tokenizer={tokenizer} />
-          <TokenizerDemo tokenizer={tokenizer} />
           <ModelConfig
             vocabSize={tokenizer.getVocabSize()}
             model={model}
@@ -212,7 +245,6 @@ function App() {
               />
               {optimizer && (
                 <>
-                  {' '}
                   <Label>
                     Iterations
                     <Input
@@ -250,6 +282,13 @@ function App() {
               </div>
             </div>
           )}
+
+          <div className="flex justify-between mb-4">
+            <Button variant="outline" onClick={() => setCurrentStep('tokenizer')}>
+              Back: Change Tokenizer
+            </Button>
+          </div>
+
           <ChartContainer
             config={{
               loss: {
@@ -280,6 +319,14 @@ function App() {
           </ChartContainer>
         </>
       )}
+    </div>
+  );
+
+  return (
+    <main className="max-w-3xl mx-auto px-2 py-4 flex flex-col gap-4">
+      {currentStep === 'input' && renderInputStep()}
+      {currentStep === 'tokenizer' && renderTokenizerStep()}
+      {currentStep === 'model' && renderModelStep()}
     </main>
   );
 }
