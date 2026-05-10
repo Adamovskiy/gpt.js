@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button.tsx';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart.tsx';
 import { Input } from '@/components/ui/input.tsx';
 import { Label } from '@/components/ui/label.tsx';
+import { Switch } from '@/components/ui/switch.tsx';
 import { errorMessage } from '@/lib/utils.ts';
 import { randomOutputLoss } from '@/llm/models/utils.ts';
 
@@ -45,6 +46,8 @@ export function ModelTraining({
   const [iterations, setIterations] = useState(100);
   const [avgIterationTime, setAvgIterationTime] = useState<number | null>(null);
   const [trainingInProgress, setTrainingInProgress] = useState(false);
+  const [statusString, setStatusString] = useState('');
+  const [updateChart, setUpdateChart] = useState(true);
 
   const bufferRef = useRef<number[]>([]);
   const rafRef = useRef<number | null>(null);
@@ -111,7 +114,9 @@ export function ModelTraining({
       const response = event.data;
 
       if (response.type === 'loss') {
-        bufferRef.current.push(response.value);
+        if (updateChart) {
+          bufferRef.current.push(response.value);
+        }
 
         rafRef.current ??= requestAnimationFrame(() => {
           rafRef.current = null;
@@ -120,9 +125,7 @@ export function ModelTraining({
         });
       } else if (response.type === 'status') {
         console.log('Worker status:', response.message);
-        if (response.message.includes('completed')) {
-          setTrainingInProgress(false);
-        }
+        setStatusString(response.message);
       } else if (response.type === 'error') {
         console.error('Worker error:', response.message);
         setTrainingInProgress(false);
@@ -145,6 +148,7 @@ export function ModelTraining({
           setModel(trainedModel);
           setOptimizer(trainedOptimizer);
           setAvgIterationTime(response.avgIterationTime);
+          setTrainingInProgress(false);
         });
       }
     };
@@ -158,7 +162,7 @@ export function ModelTraining({
         cancelAnimationFrame(rafRef.current);
       }
     };
-  }, [setLossChartData, setModel, setOptimizer]);
+  }, [setLossChartData, setModel, setOptimizer, updateChart]);
 
   const deferredPoints = useDeferredValue(lossChartData);
 
@@ -188,10 +192,21 @@ export function ModelTraining({
             {trainingInProgress ? 'Training...' : 'Train Model'}
           </Button>
 
+          <div className="flex items-center space-x-2" title="Turn it off to save some RAM">
+            <Switch
+              checked={updateChart}
+              disabled={trainingInProgress}
+              id="update-chart"
+              onCheckedChange={setUpdateChart}
+            />
+            <Label htmlFor="update-chart">With chart update</Label>
+          </div>
+
           {avgIterationTime && (
             <span className="text-sm text-muted-foreground">Avg: {avgIterationTime.toFixed(1)}ms/iter</span>
           )}
         </div>
+        <div>{statusString}</div>
       </div>
 
       <ChartContainer

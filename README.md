@@ -127,10 +127,11 @@ This project helps you understand:
 
 ## Roadmap & TODO
 - [ ] Fix linter and type errors
+- [ ] Fix UX of model usage page: persist stats, limit chart's RAM usage, abort training, etc
+- [ ] Implement serialization of all optimizers and models
 - [ ] Tests and edge case handling
-- [ ] Overfitting analysis and prevention
+- [ ] Overfitting analysis
 - [ ] GPU implementation of AdamW optimizer
-- [ ] Loss function chart performance optimization
 - [ ] Better tokenization visualization
 - [ ] Visualization of getBatch function
 - [ ] Model parameter introspection tools
@@ -139,7 +140,6 @@ This project helps you understand:
 - [ ] Unification and improvement of model configuration steps UX
 - [ ] SDG optimizer for an arbitrary parameters model
 - [ ] Make blockSize and batchSize configurable
-- [ ] Implement serialization of all optimizers and models
 - [ ] Stream inference output token by token
 
 ## Contributing

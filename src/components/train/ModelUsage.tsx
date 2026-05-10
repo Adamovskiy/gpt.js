@@ -33,7 +33,11 @@ export function ModelUsage({
   tokenizer: Tokenizer;
 }) {
   return (
-    <>
+    <div className="space-y-4">
+      <div className="mb-6">
+        <h2 className="text-xl font-bold">Train & Generate</h2>
+        <p className="text-sm text-muted-foreground">Train your model and generate text with it</p>
+      </div>
       <div className="mb-4 flex justify-between">
         <Button onClick={onBack} variant="outline">
           <ChevronLeft className="mr-1 size-4" />
@@ -64,6 +68,6 @@ export function ModelUsage({
           <ModelInference model={model} tokenizer={tokenizer} />
         </TabsContent>
       </Tabs>
-    </>
+    </div>
   );
 }

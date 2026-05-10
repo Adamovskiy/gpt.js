@@ -34,16 +34,16 @@ export type TrainWorkerResponse =
       value: number;
     }
   | {
-      type: 'completed';
+      avgIterationTime: number;
       modelData: {
-        type: 'GPTModel';
         serializedData: unknown;
+        type: 'GPTModel';
       };
       optimizerData: {
-        type: 'UniversalAdamWOptimizer';
         serializedData: unknown;
+        type: 'UniversalAdamWOptimizer';
       };
-      avgIterationTime: number;
+      type: 'completed';
     };
 
 self.onmessage = async (event: MessageEvent<TrainWorkerMessage>) => {
@@ -59,14 +59,14 @@ self.onmessage = async (event: MessageEvent<TrainWorkerMessage>) => {
     const { GPTModel } = await import('../llm/models/GPTModel.ts');
     const { UniversalAdamWOptimizer } = await import('../llm/optimizers/UniversalAdamWOptimizer.ts');
 
-    // Restore model from serialized data  
+    // Restore model from serialized data
     const model = GPTModel.fromSerializedData(modelData.serializedData as never);
-    
+
     // Restore optimizer from serialized data
     const optimizer = UniversalAdamWOptimizer.fromSerializedData(optimizerData.serializedData as never, model);
 
     self.postMessage({
-      type: 'status', 
+      type: 'status',
       message: `Starting training for ${iterations} iterations...`,
     });
 
@@ -94,7 +94,7 @@ self.onmessage = async (event: MessageEvent<TrainWorkerMessage>) => {
         if (i % 10 === 0) {
           self.postMessage({
             type: 'status',
-            message: `Training progress: ${i}/${iterations} iterations completed, Loss: ${loss.toFixed(4)}`,
+            message: `Training progress: ${i}/${iterations} iterations completed, Loss: ${loss.toFixed(4)}, iteration time: ${iterationTime.toFixed(4)}`,
           });
         }
 
@@ -123,7 +123,7 @@ self.onmessage = async (event: MessageEvent<TrainWorkerMessage>) => {
         serializedData: model.getSerializedData(),
       },
       optimizerData: {
-        type: 'UniversalAdamWOptimizer', 
+        type: 'UniversalAdamWOptimizer',
         serializedData: optimizer.getSerializedData(),
       },
       avgIterationTime: avgTime,

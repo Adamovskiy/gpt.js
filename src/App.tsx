@@ -1,16 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
 
+import type { LanguageModel, Tokenizer } from '@/llm/types.ts';
+
 import { InputConfig, type SelectedFile } from '@/components/input/InputConfig.tsx';
+import { ModelConfig } from '@/components/model/ModelConfig.tsx';
+import { OptimizerConfig } from '@/components/optimizer/OptimizerConfig.tsx';
 import { TokenizerSetup } from '@/components/tokenizer/TokenizerSetup.tsx';
 import { ModelUsage } from '@/components/train/ModelUsage.tsx';
 import { Button } from '@/components/ui/button.tsx';
-
-import type { LanguageModel, Tokenizer } from './llm/types.ts';
-
-import { ModelConfig } from './components/model/ModelConfig.tsx';
-import { OptimizerConfig } from './components/optimizer/OptimizerConfig.tsx';
-import { seed } from './lib/random.ts';
-import { type Optimizer } from './llm/optimizers/utils.ts';
+import { seed } from '@/lib/random.ts';
+import { type Optimizer } from '@/llm/optimizers/utils.ts';
 
 type AppStep = 'input' | 'tokenizer' | 'model' | 'optimizer' | 'train';
 
@@ -117,28 +116,23 @@ function App() {
     </div>
   );
 
-  const renderTrainStep = () => (
-    <div className="space-y-4">
-      <div className="mb-6">
-        <h2 className="text-xl font-bold">Train & Generate</h2>
-        <p className="text-sm text-muted-foreground">Train your model and generate text with it</p>
-      </div>
-
-      {tokenizer && model && optimizer && selectedFile && (
-        <ModelUsage
-          lossChartData={lossChartData}
-          model={model}
-          onBack={handleBackToOptimizer}
-          optimizer={optimizer}
-          selectedFile={selectedFile}
-          setLossChartData={setLossChartData}
-          setModel={setModel}
-          setOptimizer={setOptimizer}
-          tokenizer={tokenizer}
-        />
-      )}
-    </div>
-  );
+  const renderTrainStep = () =>
+    tokenizer &&
+    model &&
+    optimizer &&
+    selectedFile && (
+      <ModelUsage
+        lossChartData={lossChartData}
+        model={model}
+        onBack={handleBackToOptimizer}
+        optimizer={optimizer}
+        selectedFile={selectedFile}
+        setLossChartData={setLossChartData}
+        setModel={setModel}
+        setOptimizer={setOptimizer}
+        tokenizer={tokenizer}
+      />
+    );
 
   return (
     <main className="mx-auto flex max-w-3xl flex-col gap-4 px-2 py-4">
