@@ -1,0 +1,28 @@
+<svg
+        width="256"
+        height="256"
+        viewBox="0 0 256 256"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        role="img"
+        aria-labelledby="title desc"
+>
+    <title id="title">GPT.js icon</title>
+    <desc id="desc">Minimal GPT.js icon in the visual style of the TypeScript logo</desc>
+
+    <!-- TypeScript-like tile -->
+    <rect x="24" y="24" width="208" height="208" rx="28" fill="#3178C6"/>
+
+    <!-- Simplified ChatGPT-inspired knot -->
+    <g transform="translate(128 128)" fill="#FFFFFF">
+        <rect x="-14" y="-86" width="28" height="98" rx="14"/>
+        <rect x="-14" y="-86" width="28" height="98" rx="14" transform="rotate(60)"/>
+        <rect x="-14" y="-86" width="28" height="98" rx="14" transform="rotate(120)"/>
+        <rect x="-14" y="-86" width="28" height="98" rx="14" transform="rotate(180)"/>
+        <rect x="-14" y="-86" width="28" height="98" rx="14" transform="rotate(240)"/>
+        <rect x="-14" y="-86" width="28" height="98" rx="14" transform="rotate(300)"/>
+    </g>
+
+    <!-- Center cutout -->
+    <circle cx="128" cy="128" r="24" fill="#3178C6"/>
+</svg>
