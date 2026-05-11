@@ -1,4 +1,4 @@
-import type { Tensor1d, Tensor2d, Tensor3d } from '../tensorOps.ts';
+import type { Tensor1d, Tensor2d, Tensor3d } from '@/llm/tensorOps.ts';
 
 export class LayerNorm {
   readonly beta: Tensor1d; // learnable shift parameters

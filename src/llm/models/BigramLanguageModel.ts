@@ -1,6 +1,6 @@
-import type { LanguageModel, Parameter } from '../types.ts';
+import type { LanguageModel, Parameter } from '@/llm/types.ts';
 
-import { random } from '../../lib/random.ts';
+import { random } from '@/lib/random.ts';
 import {
   matrixMultiply,
   softmax,
@@ -10,7 +10,8 @@ import {
   type Tensor2d,
   type Tensor3d,
   transpose,
-} from '../tensorOps.ts';
+} from '@/llm/tensorOps.ts';
+
 import { Linear } from './Linear.ts';
 import { concatBatched, crossEntropy, sampleMultinomial, softmaxBatched } from './utils.ts';
 
@@ -86,7 +87,7 @@ export class BigramLanguageModel implements LanguageModel {
     return gradients;
   }
 
-  async forward(
+  forward(
     idx: Tensor2d, // (B, T)
     targets?: Tensor2d, // (B, T)
   ): Promise<{
@@ -98,10 +99,10 @@ export class BigramLanguageModel implements LanguageModel {
     const embeddingsSum = tokenEmbeddings.map((batch) => sum2d(batch, positionEmbeddings)); // (T, numberEmbeddingDimensions)
     const logits = embeddingsSum.map((batch) => batch.map((token) => this.languageModelingHead.forward(token))); // (B,T, vocabSize)
 
-    if (!targets) return { logits };
+    if (!targets) return Promise.resolve({ logits });
     const loss = crossEntropy(logits, targets);
 
-    return { logits, loss };
+    return Promise.resolve({ logits, loss });
   }
 
   async generate(

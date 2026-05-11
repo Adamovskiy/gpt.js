@@ -1,6 +1,6 @@
-import type { LanguageModel, Parameter } from '../types.ts';
+import type { LanguageModel, Parameter } from '@/llm/types.ts';
 
-import { random } from '../../lib/random.ts';
+import { random } from '@/lib/random.ts';
 import {
   matrixMultiply,
   softmax,
@@ -10,7 +10,8 @@ import {
   type Tensor2d,
   type Tensor3d,
   transpose,
-} from '../tensorOps.ts';
+} from '@/llm/tensorOps.ts';
+
 import { Head } from './Head.ts';
 import { Linear } from './Linear.ts';
 import { concatBatched, crossEntropy, sampleMultinomial, softmaxBatched } from './utils.ts';
@@ -21,10 +22,6 @@ export class BigramLanguageModelSingleHeadAttention implements LanguageModel {
   readonly positionEmbeddingTable: Tensor2d; // blockSize x numberEmbeddingDimensions
   readonly selfAttention: Head; // single self-attention head
   readonly tokenEmbeddingTable: Tensor2d; // vocabSize x numberEmbeddingDimensions
-
-  get isGPU(): boolean {
-    return false;
-  }
 
   constructor(vocabSize: number, numberEmbeddingDimensions: number, contextSize: number) {
     this.contextSize = contextSize;
@@ -99,7 +96,7 @@ export class BigramLanguageModelSingleHeadAttention implements LanguageModel {
     return gradients;
   }
 
-  async forward(
+  forward(
     idx: Tensor2d, // (B, T)
     targets?: Tensor2d, // (B, T)
   ): Promise<{
@@ -112,10 +109,10 @@ export class BigramLanguageModelSingleHeadAttention implements LanguageModel {
     const attended = this.selfAttention.forward(embeddingsSum); // (B, T, numberEmbeddingDimensions)
     const logits = attended.map((batch) => batch.map((token) => this.languageModelingHead.forward(token))); // (B, T, vocabSize)
 
-    if (!targets) return { logits };
+    if (!targets) return Promise.resolve({ logits });
     const loss = crossEntropy(logits, targets);
 
-    return { logits, loss };
+    return Promise.resolve({ logits, loss });
   }
 
   async generate(

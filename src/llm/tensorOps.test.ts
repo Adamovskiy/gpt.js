@@ -1,6 +1,7 @@
 import { it } from 'vitest';
 
-import { assertArraysClose, assertMatrix2dClose, assertMatrix3dClose } from '../testUtils.ts';
+import { assertArraysClose, assertMatrix2dClose, assertMatrix3dClose } from '@/testUtils.ts';
+
 import {
   getBagOfWordsOptimized,
   getBagOfWordsUnoptimized,

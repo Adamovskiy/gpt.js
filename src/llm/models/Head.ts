@@ -6,7 +6,8 @@ import {
   type Tensor2d,
   type Tensor3d,
   transpose,
-} from '../tensorOps.ts';
+} from '@/llm/tensorOps.ts';
+
 import { Linear } from './Linear.ts';
 
 export class Head {

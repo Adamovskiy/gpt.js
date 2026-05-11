@@ -1,4 +1,20 @@
-import type { LanguageModel, Parameter } from '../types.ts';
+import type { LanguageModel, Parameter } from '@/llm/types.ts';
+
+import { random } from '@/lib/random.ts';
+import {
+  matrixMultiply,
+  softmax,
+  sum2d,
+  type Tensor1d,
+  type Tensor2d,
+  type Tensor3d,
+  transpose,
+} from '@/llm/tensorOps.ts';
+
+import { LayerNorm } from './LayerNorm.ts';
+import { Linear } from './Linear.ts';
+import { TransformerBlock } from './TransformerBlock.ts';
+import { concatBatched, crossEntropy, sampleMultinomial, softmaxBatched } from './utils.ts';
 
 export interface GPTModelSerializedData {
   vocabSize: number;
@@ -25,21 +41,6 @@ export interface GPTModelSerializedData {
   languageModelingHead: { bias: Tensor1d; weights: Tensor2d };
 }
 
-import { random } from '../../lib/random.ts';
-import {
-  matrixMultiply,
-  softmax,
-  sum2d,
-  type Tensor1d,
-  type Tensor2d,
-  type Tensor3d,
-  transpose,
-} from '../tensorOps.ts';
-import { LayerNorm } from './LayerNorm.ts';
-import { Linear } from './Linear.ts';
-import { TransformerBlock } from './TransformerBlock.ts';
-import { concatBatched, crossEntropy, sampleMultinomial, softmaxBatched } from './utils.ts';
-
 export class GPTModel implements LanguageModel {
   readonly blocks: TransformerBlock[];
   readonly contextSize: number;
@@ -47,10 +48,6 @@ export class GPTModel implements LanguageModel {
   readonly lnFinal: LayerNorm;
   readonly positionEmbeddingTable: Tensor2d;
   readonly tokenEmbeddingTable: Tensor2d;
-
-  get isGPU(): boolean {
-    return false;
-  }
 
   constructor(
     vocabSize: number,
@@ -298,7 +295,7 @@ export class GPTModel implements LanguageModel {
     return gradients;
   }
 
-  async forward(
+  forward(
     idx: Tensor2d, // (B, T)
     targets?: Tensor2d, // (B, T)
   ): Promise<{
@@ -318,10 +315,10 @@ export class GPTModel implements LanguageModel {
     const normalized = this.lnFinal.forward(x);
     const logits = normalized.map((batch) => batch.map((token) => this.languageModelingHead.forward(token))); // (B, T, vocabSize)
 
-    if (!targets) return { logits };
+    if (!targets) return Promise.resolve({ logits });
     const loss = crossEntropy(logits, targets);
 
-    return { logits, loss };
+    return Promise.resolve({ logits, loss });
   }
 
   async generate(

@@ -1,4 +1,4 @@
-import type { Tensor2d, Tensor3d } from '../tensorOps.ts';
+import type { Tensor2d, Tensor3d } from '@/llm/tensorOps.ts';
 
 import { Head } from './Head.ts';
 

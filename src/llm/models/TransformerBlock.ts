@@ -1,4 +1,5 @@
-import { sum2d, sum3d, type Tensor1d, type Tensor2d, type Tensor3d } from '../tensorOps.ts';
+import { sum2d, sum3d, type Tensor1d, type Tensor2d, type Tensor3d } from '@/llm/tensorOps.ts';
+
 import { FeedForward } from './FeedForward.ts';
 import { LayerNorm } from './LayerNorm.ts';
 import { MultiHeadAttention } from './MultiHeadAttention.ts';

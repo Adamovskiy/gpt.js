@@ -26,9 +26,6 @@ export class GPTModelGPU implements LanguageModel {
   readonly lnFinal: LayerNormGPU;
   readonly positionEmbeddingTable: Tensor2d;
   readonly tokenEmbeddingTable: Tensor2d;
-  get isGPU(): boolean {
-    return true;
-  }
   private device: GPUDevice | null = null;
 
   private gpuOps: GPUOperations | null = null;

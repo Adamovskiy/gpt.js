@@ -1,12 +1,16 @@
-import { matrixMultiply, type Tensor1d, type Tensor2d, type Tensor3d, transpose } from '../tensorOps.ts';
+import { matrixMultiply, type Tensor1d, type Tensor2d, type Tensor3d, transpose } from '@/llm/tensorOps.ts';
+
 import { Linear } from './Linear.ts';
 
 export class FeedForward {
   readonly linear1: Linear;
   readonly linear2: Linear;
 
-  constructor(embeddingSize: number, hiddenSize?: number) {
-    const ffnDim = hiddenSize || 4 * embeddingSize; // Standard transformer ratio
+  constructor(
+    embeddingSize: number,
+    hiddenSize = 4, // Standard transformer ratio
+  ) {
+    const ffnDim = hiddenSize * embeddingSize;
     this.linear1 = new Linear(embeddingSize, ffnDim);
     this.linear2 = new Linear(ffnDim, embeddingSize);
   }

@@ -1,6 +1,6 @@
-import type { Tensor1d, Tensor2d } from './tensorOps.ts';
+import { random } from '@/lib/random.ts';
 
-import { random } from '../lib/random.ts';
+import type { Tensor1d, Tensor2d } from './tensorOps.ts';
 
 export const blockSize = 8; // Max context length for predictions
 const batchSize = 4; // Independent sequences processed in parallel

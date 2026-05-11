@@ -1,5 +1,5 @@
-import { random } from '../../lib/random.ts';
-import { matrixMultiply, sum1d, type Tensor1d } from '../tensorOps.ts';
+import { random } from '@/lib/random.ts';
+import { matrixMultiply, sum1d, type Tensor1d } from '@/llm/tensorOps.ts';
 
 export class Linear {
   readonly bias: number[];
