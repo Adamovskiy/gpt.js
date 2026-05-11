@@ -37,7 +37,24 @@ function parseTokenInput(input: string): {
   return { tokens, error: null };
 }
 
-export function TokenizerDemo({ tokenizer }: { tokenizer: Tokenizer }) {
+function getTokenColors(count: number): string[] {
+  const colors = [
+    'bg-red-100 text-red-800 border-red-200',
+    'bg-blue-100 text-blue-800 border-blue-200',
+    'bg-green-100 text-green-800 border-green-200',
+    'bg-yellow-100 text-yellow-800 border-yellow-200',
+    'bg-purple-100 text-purple-800 border-purple-200',
+    'bg-pink-100 text-pink-800 border-pink-200',
+    'bg-indigo-100 text-indigo-800 border-indigo-200',
+    'bg-orange-100 text-orange-800 border-orange-200',
+    'bg-teal-100 text-teal-800 border-teal-200',
+    'bg-cyan-100 text-cyan-800 border-cyan-200',
+  ];
+
+  return Array.from({ length: count }, (_, i) => colors[i % colors.length]);
+}
+
+export function TokenizerDemo({ tokenizer, inputContent }: { inputContent: string; tokenizer: Tokenizer }) {
   const [text, setText] = useState('');
   const [tokenInput, setTokenInput] = useState('');
 
@@ -54,6 +71,31 @@ export function TokenizerDemo({ tokenizer }: { tokenizer: Tokenizer }) {
     return tokenizer.decode(parsedTokenInput.tokens);
   }, [tokenizer, parsedTokenInput]);
 
+  const visualizationData = useMemo(() => {
+    const textToVisualize = inputContent.slice(0, 200);
+    const tokens = tokenizer.encode(textToVisualize);
+    const colors = getTokenColors(tokens.length);
+
+    const segments: { color: string; text: string; tokenId: number }[] = [];
+    let currentPosition = 0;
+
+    tokens.forEach((tokenId, index) => {
+      const tokenText = tokenizer.decode([tokenId]);
+      const tokenLength = tokenText.length;
+
+      if (currentPosition + tokenLength <= textToVisualize.length) {
+        segments.push({
+          text: tokenText,
+          color: colors[index],
+          tokenId,
+        });
+        currentPosition += tokenLength;
+      }
+    });
+
+    return { segments, totalTokens: tokens.length, textLength: textToVisualize.length };
+  }, [tokenizer, inputContent]);
+
   return (
     <Card>
       <CardHeader>
@@ -63,9 +105,10 @@ export function TokenizerDemo({ tokenizer }: { tokenizer: Tokenizer }) {
 
       <CardContent>
         <Tabs className="w-full" defaultValue="encode">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="encode">Encode</TabsTrigger>
             <TabsTrigger value="decode">Decode</TabsTrigger>
+            <TabsTrigger value="visualize">Visualize</TabsTrigger>
           </TabsList>
 
           <TabsContent className="mt-4 space-y-4" value="encode">
@@ -135,6 +178,42 @@ export function TokenizerDemo({ tokenizer }: { tokenizer: Tokenizer }) {
               >
                 {decodedText || <span className="text-muted-foreground">No decoded text.</span>}
               </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent className="mt-4 space-y-4" value="visualize">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <Label>Training data tokenization</Label>
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary">{visualizationData.totalTokens} tokens</Badge>
+                  <Badge variant="outline">{visualizationData.textLength} chars</Badge>
+                </div>
+              </div>
+
+              <div className="min-h-16 rounded-md border bg-muted/30 p-3">
+                {visualizationData.segments.length > 0 ? (
+                  <div className="font-mono text-sm/relaxed">
+                    {visualizationData.segments.map((segment, index) => (
+                      <span
+                        className={`inline-block rounded-sm border px-1 py-0.5 ${segment.color} mr-0.5 mb-0.5`}
+                        key={`${index}-${segment.tokenId}`}
+                        title={`Token ID: ${segment.tokenId}`}
+                      >
+                        {segment.text}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No content to visualize.</p>
+                )}
+              </div>
+
+              {inputContent.length > 200 && (
+                <p className="text-xs text-muted-foreground">
+                  Showing first 200 characters of {inputContent.length} total characters.
+                </p>
+              )}
             </div>
           </TabsContent>
         </Tabs>

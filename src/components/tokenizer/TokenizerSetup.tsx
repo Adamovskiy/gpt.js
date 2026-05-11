@@ -290,7 +290,7 @@ export function TokenizerSetup({ fileContent, fileName, onComplete, onBack }: To
           </Card>
 
           <Vocabulary tokenizer={tokenizer} />
-          <TokenizerDemo tokenizer={tokenizer} />
+          <TokenizerDemo inputContent={fileContent} tokenizer={tokenizer} />
         </>
       )}
     </StepLayout>

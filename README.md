@@ -132,12 +132,11 @@ This project helps you understand:
 - [ ] Tests and edge case handling
 - [ ] Overfitting analysis
 - [ ] GPU implementation of AdamW optimizer
-- [ ] Better tokenization visualization
 - [ ] Visualization of getBatch function
 - [ ] Model parameter introspection tools
 - [ ] Optimizer operation visualization
 - [ ] Tensor operations visualization from `tensorOps.ts`
-- [ ] Unification and improvement of model configuration steps UX
+- [ ] Improvement of model configuration steps UX
 - [ ] SDG optimizer for an arbitrary parameters model
 - [ ] Make blockSize and batchSize configurable
 - [ ] Stream inference output token by token
