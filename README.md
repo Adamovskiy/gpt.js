@@ -128,12 +128,10 @@ This project helps you understand:
 ## Roadmap & TODO
 - [ ] Fix linter and type errors
 - [ ] Fix UX of model usage page: persist stats, limit chart's RAM usage, abort training, etc
-- [ ] Implement serialization of all models
 - [ ] Tests and edge case handling
 - [ ] Overfitting analysis
 - [ ] GPU implementation of AdamW optimizer
 - [ ] Visualization of getBatch function
-- [ ] Model parameter introspection tools
 - [ ] Optimizer operation visualization
 - [ ] Tensor operations visualization from `tensorOps.ts`
 - [ ] Improvement of model configuration steps UX

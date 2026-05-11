@@ -6,6 +6,7 @@ import type { LanguageModel, Optimizer, Tokenizer } from '@/llm/types.ts';
 import { BackButton } from '@/components/layout/BackButton.tsx';
 import { StepLayout } from '@/components/layout/StepLayout.tsx';
 import { ModelInference } from '@/components/train/ModelInference.tsx';
+import { ModelIntrospection } from '@/components/train/ModelIntrospection.tsx';
 import { Card, CardContent } from '@/components/ui/card.tsx';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs.tsx';
 
@@ -41,9 +42,10 @@ export function ModelUsage({
       <Card>
         <CardContent>
           <Tabs className="w-full" defaultValue="train">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="train">Training</TabsTrigger>
               <TabsTrigger value="generate">Inference</TabsTrigger>
+              <TabsTrigger value="introspection">Introspection</TabsTrigger>
             </TabsList>
 
             <TabsContent className="space-y-6" value="train">
@@ -61,6 +63,10 @@ export function ModelUsage({
 
             <TabsContent className="space-y-6" value="generate">
               <ModelInference model={model} tokenizer={tokenizer} />
+            </TabsContent>
+
+            <TabsContent className="space-y-6" value="introspection">
+              <ModelIntrospection model={model} />
             </TabsContent>
           </Tabs>
         </CardContent>
