@@ -1,7 +1,8 @@
-import type { Tokenizer } from '../llm/types.ts';
+import type { Tokenizer } from '@/llm/types.ts';
 
-import { BPETokenizer, type BPETokenizerSerializedData } from '../llm/tokenizers/BPETokenizer.ts';
-import { CharTokenizer, type CharTokenizerSerializedData } from '../llm/tokenizers/CharTokenizer.ts';
+import { serializeTokenizer, type TokenizerData } from '@/llm/serializer.ts';
+import { BPETokenizer } from '@/llm/tokenizers/BPETokenizer.ts';
+import { CharTokenizer } from '@/llm/tokenizers/CharTokenizer.ts';
 
 export type TokenizerWorkerMessage = {
   fileContent: string;
@@ -26,15 +27,7 @@ export type TokenizerWorkerResponse =
       type: 'error';
     }
   | {
-      tokenizer:
-        | {
-            serializedData: BPETokenizerSerializedData;
-            type: 'BPE';
-          }
-        | {
-            serializedData: CharTokenizerSerializedData;
-            type: 'Char';
-          };
+      tokenizer: TokenizerData;
       type: 'complete';
     };
 
@@ -63,10 +56,7 @@ self.onmessage = (event: MessageEvent<TokenizerWorkerMessage>) => {
     // Send the completed tokenizer data
     self.postMessage({
       type: 'complete',
-      tokenizer: {
-        type: createEvent.tokenizerType,
-        serializedData: tokenizer.getSerializedData(),
-      },
+      tokenizer: serializeTokenizer(tokenizer),
     });
   } catch (error) {
     self.postMessage({

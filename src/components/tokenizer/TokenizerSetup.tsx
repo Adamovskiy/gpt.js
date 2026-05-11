@@ -12,8 +12,7 @@ import { Field, FieldLabel } from '@/components/ui/field.tsx';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.tsx';
-import { BPETokenizer } from '@/llm/tokenizers/BPETokenizer.ts';
-import { CharTokenizer } from '@/llm/tokenizers/CharTokenizer.ts';
+import { deserializeTokenizer } from '@/llm/serializer.ts';
 
 import { TokenizerDemo } from './TokenizerDemo';
 import { Vocabulary } from './Vocabulary';
@@ -76,19 +75,13 @@ export function TokenizerSetup({ fileContent, fileName, onComplete, onBack }: To
       if (workerResponse.type === 'progress') {
         setProgress(workerResponse.progress);
       } else if (workerResponse.type === 'complete') {
-        setProgress(100);
-        setIsCreating(false);
-
         // Deserialize the tokenizer instance from worker data
-        const tokenizer = workerResponse.tokenizer;
-        let newTokenizer: Tokenizer;
-        if (tokenizer.type === 'BPE') {
-          newTokenizer = BPETokenizer.fromSerializedData(tokenizer.serializedData);
-        } else {
-          newTokenizer = CharTokenizer.fromSerializedData(tokenizer.serializedData);
-        }
-        setTokenizer(newTokenizer);
-        setCurrentStep('introspect');
+        void deserializeTokenizer(workerResponse.tokenizer).then((tokenizer) => {
+          setTokenizer(tokenizer);
+          setCurrentStep('introspect');
+          setProgress(100);
+          setIsCreating(false);
+        });
 
         worker.terminate();
         workerRef.current = null;

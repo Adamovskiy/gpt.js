@@ -1,7 +1,7 @@
 import type { Tensor1d, Tensor2d } from '@/llm/tensorOps.ts';
 import type { Optimizer, Trainable } from '@/llm/types.ts';
 
-export interface UniversalAdamWOptimizerSerializedData {
+export interface AdamWOptimizerSerializedData {
   beta1: number;
   beta2: number;
   eps: number;
@@ -12,7 +12,7 @@ export interface UniversalAdamWOptimizerSerializedData {
   velocity: Record<string, Tensor2d | Tensor1d>;
 }
 
-export class UniversalAdamWOptimizer implements Optimizer {
+export class AdamWOptimizer implements Optimizer {
   private readonly beta1: number;
   private readonly beta2: number;
   private readonly eps: number;
@@ -53,15 +53,8 @@ export class UniversalAdamWOptimizer implements Optimizer {
     }
   }
 
-  static fromSerializedData(data: UniversalAdamWOptimizerSerializedData, model: Trainable): UniversalAdamWOptimizer {
-    const optimizer = new UniversalAdamWOptimizer(
-      model,
-      data.learningRate,
-      data.beta1,
-      data.beta2,
-      data.eps,
-      data.weightDecay,
-    );
+  static fromSerializedData(data: AdamWOptimizerSerializedData, model: Trainable): AdamWOptimizer {
+    const optimizer = new AdamWOptimizer(model, data.learningRate, data.beta1, data.beta2, data.eps, data.weightDecay);
 
     optimizer.stepCount = data.stepCount;
     optimizer.momentum = data.momentum;
@@ -70,7 +63,7 @@ export class UniversalAdamWOptimizer implements Optimizer {
     return optimizer;
   }
 
-  getSerializedData(): UniversalAdamWOptimizerSerializedData {
+  getSerializedData(): AdamWOptimizerSerializedData {
     return {
       beta1: this.beta1,
       beta2: this.beta2,

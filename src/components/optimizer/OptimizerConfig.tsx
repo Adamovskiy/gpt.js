@@ -10,8 +10,8 @@ import { Field, FieldLabel } from '@/components/ui/field.tsx';
 import { Input } from '@/components/ui/input.tsx';
 import { Label } from '@/components/ui/label.tsx';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.tsx';
+import { AdamWOptimizer } from '@/llm/optimizers/AdamWOptimizer.ts';
 import { SDGOptimizer } from '@/llm/optimizers/SDGOptimizer.ts';
-import { UniversalAdamWOptimizer } from '@/llm/optimizers/UniversalAdamWOptimizer.ts';
 
 type OptimizerType = 'adamw' | 'sgd';
 
@@ -42,7 +42,7 @@ export function OptimizerConfig({
     let optimizerInstance: Optimizer;
 
     if (optimizerType === 'adamw') {
-      optimizerInstance = new UniversalAdamWOptimizer(model, learningRate, beta1, beta2, epsilon, weightDecay);
+      optimizerInstance = new AdamWOptimizer(model, learningRate, beta1, beta2, epsilon, weightDecay);
     } else {
       optimizerInstance = new SDGOptimizer(model, learningRate);
     }
