@@ -1,4 +1,3 @@
-import type { BigramLanguageModelSingleHeadAttention } from '@/llm/models/BigramLanguageModelSingleHeadAttention.ts';
 import type { LanguageModel, Parameter } from '@/llm/types.ts';
 
 import { random } from '@/lib/random.ts';
@@ -16,7 +15,22 @@ import { Linear } from './Linear.ts';
 import { MultiHeadAttention } from './MultiHeadAttention.ts';
 import { concatBatched, crossEntropy, sampleMultinomial, softmaxBatched } from './utils.ts';
 
-export class BigramLanguageModelMultiHeadAttention implements LanguageModel<never> {
+export interface BigramLanguageModelMultiHeadAttentionSerializedData {
+  vocabSize: number;
+  numberEmbeddingDimensions: number;
+  contextSize: number;
+  numHeads: number;
+  tokenEmbeddingTable: Tensor2d;
+  positionEmbeddingTable: Tensor2d;
+  multiHeadAttention: {
+    key: { weights: Tensor2d };
+    query: { weights: Tensor2d };
+    value: { weights: Tensor2d };
+  }[];
+  languageModelingHead: { bias: Tensor1d; weights: Tensor2d };
+}
+
+export class BigramLanguageModelMultiHeadAttention implements LanguageModel<BigramLanguageModelMultiHeadAttentionSerializedData> {
   readonly contextSize: number;
 
   readonly languageModelingHead: Linear;
@@ -36,8 +50,41 @@ export class BigramLanguageModelMultiHeadAttention implements LanguageModel<neve
     this.languageModelingHead = new Linear(numberEmbeddingDimensions, vocabSize);
   }
 
-  static fromSerializedData(_data: unknown): BigramLanguageModelSingleHeadAttention {
-    throw new Error('Not implemented yet');
+  static fromSerializedData(
+    data: BigramLanguageModelMultiHeadAttentionSerializedData,
+  ): BigramLanguageModelMultiHeadAttention {
+    const model = new BigramLanguageModelMultiHeadAttention(
+      data.vocabSize,
+      data.numberEmbeddingDimensions,
+      data.contextSize,
+      data.numHeads,
+    );
+
+    // Restore embeddings
+    model.tokenEmbeddingTable.splice(0, model.tokenEmbeddingTable.length, ...data.tokenEmbeddingTable);
+    model.positionEmbeddingTable.splice(0, model.positionEmbeddingTable.length, ...data.positionEmbeddingTable);
+
+    // Restore attention heads
+    data.multiHeadAttention.forEach((headData, i) => {
+      const head = model.multiHeadAttention.heads[i];
+      head.key.weights.splice(0, head.key.weights.length, ...headData.key.weights);
+      head.query.weights.splice(0, head.query.weights.length, ...headData.query.weights);
+      head.value.weights.splice(0, head.value.weights.length, ...headData.value.weights);
+    });
+
+    // Restore language modeling head
+    model.languageModelingHead.weights.splice(
+      0,
+      model.languageModelingHead.weights.length,
+      ...data.languageModelingHead.weights,
+    );
+    model.languageModelingHead.bias.splice(
+      0,
+      model.languageModelingHead.bias.length,
+      ...data.languageModelingHead.bias,
+    );
+
+    return model;
   }
 
   computeGradients(contextTokens: Tensor2d, targets: Tensor2d): Record<string, Tensor2d | Tensor1d> {
@@ -174,7 +221,23 @@ export class BigramLanguageModelMultiHeadAttention implements LanguageModel<neve
     return params;
   }
 
-  getSerializedData(): never {
-    throw new Error('Not implemented yet');
+  getSerializedData(): BigramLanguageModelMultiHeadAttentionSerializedData {
+    return {
+      vocabSize: this.tokenEmbeddingTable.length,
+      numberEmbeddingDimensions: this.tokenEmbeddingTable[0].length,
+      contextSize: this.contextSize,
+      numHeads: this.multiHeadAttention.heads.length,
+      tokenEmbeddingTable: this.tokenEmbeddingTable,
+      positionEmbeddingTable: this.positionEmbeddingTable,
+      multiHeadAttention: this.multiHeadAttention.heads.map((head) => ({
+        key: { weights: head.key.weights },
+        query: { weights: head.query.weights },
+        value: { weights: head.value.weights },
+      })),
+      languageModelingHead: {
+        weights: this.languageModelingHead.weights,
+        bias: this.languageModelingHead.bias,
+      },
+    };
   }
 }

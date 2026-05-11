@@ -15,7 +15,16 @@ import {
 import { Linear } from './Linear.ts';
 import { concatBatched, crossEntropy, sampleMultinomial, softmaxBatched } from './utils.ts';
 
-export class BigramLanguageModel implements LanguageModel<never> {
+export interface BigramLanguageModelSerializedData {
+  vocabSize: number;
+  numberEmbeddingDimensions: number;
+  contextSize: number;
+  tokenEmbeddingTable: Tensor2d;
+  positionEmbeddingTable: Tensor2d;
+  languageModelingHead: { bias: Tensor1d; weights: Tensor2d };
+}
+
+export class BigramLanguageModel implements LanguageModel<BigramLanguageModelSerializedData> {
   readonly contextSize: number;
   readonly languageModelingHead: Linear; // Transforms embeddings to logits
   readonly positionEmbeddingTable: Tensor2d; // blockSize x numberEmbeddingDimensions
@@ -33,8 +42,26 @@ export class BigramLanguageModel implements LanguageModel<never> {
     this.languageModelingHead = new Linear(numberEmbeddingDimensions, vocabSize);
   }
 
-  static fromSerializedData(_data: unknown): BigramLanguageModel {
-    throw new Error('Not implemented yet');
+  static fromSerializedData(data: BigramLanguageModelSerializedData): BigramLanguageModel {
+    const model = new BigramLanguageModel(data.vocabSize, data.numberEmbeddingDimensions, data.contextSize);
+
+    // Restore embeddings
+    model.tokenEmbeddingTable.splice(0, model.tokenEmbeddingTable.length, ...data.tokenEmbeddingTable);
+    model.positionEmbeddingTable.splice(0, model.positionEmbeddingTable.length, ...data.positionEmbeddingTable);
+
+    // Restore language modeling head
+    model.languageModelingHead.weights.splice(
+      0,
+      model.languageModelingHead.weights.length,
+      ...data.languageModelingHead.weights,
+    );
+    model.languageModelingHead.bias.splice(
+      0,
+      model.languageModelingHead.bias.length,
+      ...data.languageModelingHead.bias,
+    );
+
+    return model;
   }
 
   computeGradients(contextTokens: Tensor2d, targets: Tensor2d): Record<string, Tensor2d | Tensor1d> {
@@ -135,7 +162,17 @@ export class BigramLanguageModel implements LanguageModel<never> {
     ];
   }
 
-  getSerializedData(): never {
-    throw new Error('Not implemented yet');
+  getSerializedData(): BigramLanguageModelSerializedData {
+    return {
+      vocabSize: this.tokenEmbeddingTable.length,
+      numberEmbeddingDimensions: this.tokenEmbeddingTable[0].length,
+      contextSize: this.contextSize,
+      tokenEmbeddingTable: this.tokenEmbeddingTable,
+      positionEmbeddingTable: this.positionEmbeddingTable,
+      languageModelingHead: {
+        weights: this.languageModelingHead.weights,
+        bias: this.languageModelingHead.bias,
+      },
+    };
   }
 }

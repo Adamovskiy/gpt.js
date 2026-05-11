@@ -10,13 +10,13 @@ import { Field, FieldLabel } from '@/components/ui/field.tsx';
 import { Input } from '@/components/ui/input.tsx';
 import { Label } from '@/components/ui/label.tsx';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { errorMessage } from '@/lib/utils.ts';
 import { BigramLanguageModel } from '@/llm/models/BigramLanguageModel.ts';
 import { BigramLanguageModelMultiHeadAttention } from '@/llm/models/BigramLanguageModelMultiHeadAttention.ts';
 import { BigramLanguageModelSingleHeadAttention } from '@/llm/models/BigramLanguageModelSingleHeadAttention.ts';
 import { GPTModel } from '@/llm/models/GPTModel.ts';
 import { GPTModelGPU } from '@/llm/models/gpu/GPTModelGPU.ts';
 import { blockSize } from '@/llm/sampling.ts';
-import { errorMessage } from '@/lib/utils.ts';
 
 interface BigramConfig {
   type: 'bigram';

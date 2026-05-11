@@ -16,7 +16,26 @@ import { Linear } from './Linear.ts';
 import { MultiHeadAttention } from './MultiHeadAttention.ts';
 import { concatBatched, crossEntropy, sampleMultinomial, softmaxBatched } from './utils.ts';
 
-export class BigramLanguageModelWithFF implements LanguageModel<never> {
+export interface BigramLanguageModelWithFFSerializedData {
+  vocabSize: number;
+  numberEmbeddingDimensions: number;
+  contextSize: number;
+  numHeads: number;
+  tokenEmbeddingTable: Tensor2d;
+  positionEmbeddingTable: Tensor2d;
+  multiHeadAttention: {
+    key: { weights: Tensor2d };
+    query: { weights: Tensor2d };
+    value: { weights: Tensor2d };
+  }[];
+  feedForward: {
+    linear1: { bias: Tensor1d; weights: Tensor2d };
+    linear2: { bias: Tensor1d; weights: Tensor2d };
+  };
+  languageModelingHead: { bias: Tensor1d; weights: Tensor2d };
+}
+
+export class BigramLanguageModelWithFF implements LanguageModel<BigramLanguageModelWithFFSerializedData> {
   readonly contextSize: number;
   readonly feedForward: FeedForward;
   readonly languageModelingHead: Linear;
@@ -38,8 +57,53 @@ export class BigramLanguageModelWithFF implements LanguageModel<never> {
     this.languageModelingHead = new Linear(numberEmbeddingDimensions, vocabSize);
   }
 
-  static fromSerializedData(_data: unknown): BigramLanguageModelWithFF {
-    throw new Error('Not implemented yet');
+  static fromSerializedData(data: BigramLanguageModelWithFFSerializedData): BigramLanguageModelWithFF {
+    const model = new BigramLanguageModelWithFF(
+      data.vocabSize,
+      data.numberEmbeddingDimensions,
+      data.contextSize,
+      data.numHeads,
+    );
+
+    // Restore embeddings
+    model.tokenEmbeddingTable.splice(0, model.tokenEmbeddingTable.length, ...data.tokenEmbeddingTable);
+    model.positionEmbeddingTable.splice(0, model.positionEmbeddingTable.length, ...data.positionEmbeddingTable);
+
+    // Restore attention heads
+    data.multiHeadAttention.forEach((headData, i) => {
+      const head = model.multiHeadAttention.heads[i];
+      head.key.weights.splice(0, head.key.weights.length, ...headData.key.weights);
+      head.query.weights.splice(0, head.query.weights.length, ...headData.query.weights);
+      head.value.weights.splice(0, head.value.weights.length, ...headData.value.weights);
+    });
+
+    // Restore feedforward
+    model.feedForward.linear1.weights.splice(
+      0,
+      model.feedForward.linear1.weights.length,
+      ...data.feedForward.linear1.weights,
+    );
+    model.feedForward.linear1.bias.splice(0, model.feedForward.linear1.bias.length, ...data.feedForward.linear1.bias);
+    model.feedForward.linear2.weights.splice(
+      0,
+      model.feedForward.linear2.weights.length,
+      ...data.feedForward.linear2.weights,
+    );
+    model.feedForward.linear2.bias.splice(0, model.feedForward.linear2.bias.length, ...data.feedForward.linear2.bias);
+
+    // Restore language modeling head
+    model.languageModelingHead.weights.splice(
+      0,
+      model.languageModelingHead.weights.length,
+      ...data.languageModelingHead.weights,
+    );
+    model.languageModelingHead.bias.splice(
+      0,
+      model.languageModelingHead.bias.length,
+      ...data.languageModelingHead.bias,
+    );
+
+    return model;
   }
 
   computeGradients(contextTokens: Tensor2d, targets: Tensor2d): Record<string, Tensor2d | Tensor1d> {
@@ -207,7 +271,27 @@ export class BigramLanguageModelWithFF implements LanguageModel<never> {
     return params;
   }
 
-  getSerializedData(): never {
-    throw new Error('Not implemented yet');
+  getSerializedData(): BigramLanguageModelWithFFSerializedData {
+    return {
+      vocabSize: this.tokenEmbeddingTable.length,
+      numberEmbeddingDimensions: this.tokenEmbeddingTable[0].length,
+      contextSize: this.contextSize,
+      numHeads: this.multiHeadAttention.heads.length,
+      tokenEmbeddingTable: this.tokenEmbeddingTable,
+      positionEmbeddingTable: this.positionEmbeddingTable,
+      multiHeadAttention: this.multiHeadAttention.heads.map((head) => ({
+        key: { weights: head.key.weights },
+        query: { weights: head.query.weights },
+        value: { weights: head.value.weights },
+      })),
+      feedForward: {
+        linear1: { weights: this.feedForward.linear1.weights, bias: this.feedForward.linear1.bias },
+        linear2: { weights: this.feedForward.linear2.weights, bias: this.feedForward.linear2.bias },
+      },
+      languageModelingHead: {
+        weights: this.languageModelingHead.weights,
+        bias: this.languageModelingHead.bias,
+      },
+    };
   }
 }
