@@ -1,6 +1,5 @@
-import type { Tensor1d, Tensor2d } from '../tensorOps.ts';
-import type { Trainable } from '../types.ts';
-import type { Optimizer } from './utils.ts';
+import type { Tensor1d, Tensor2d } from '@/llm/tensorOps.ts';
+import type { Optimizer, Trainable } from '@/llm/types.ts';
 
 export interface UniversalAdamWOptimizerSerializedData {
   beta1: number;

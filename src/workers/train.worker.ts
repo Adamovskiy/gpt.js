@@ -7,11 +7,17 @@ export interface TrainWorkerMessage {
   trainData: number[];
   modelData: {
     serializedData: unknown;
-    type: 'GPTModel';
+    type:
+      | 'GPTModel'
+      | 'BigramLanguageModel'
+      | 'BigramLanguageModelWithFF'
+      | 'BigramLanguageModelSingleHeadAttention'
+      | 'BigramLanguageModelMultiHeadAttention'
+      | 'GPTModelGPU';
   };
   optimizerData: {
     serializedData: unknown;
-    type: 'UniversalAdamWOptimizer';
+    type: 'UniversalAdamWOptimizer' | 'SDGOptimizer';
   };
   tokenizerData: {
     serializedData: unknown;
@@ -37,11 +43,17 @@ export type TrainWorkerResponse =
       avgIterationTime: number;
       modelData: {
         serializedData: unknown;
-        type: 'GPTModel';
+        type:
+          | 'GPTModel'
+          | 'BigramLanguageModel'
+          | 'BigramLanguageModelWithFF'
+          | 'BigramLanguageModelSingleHeadAttention'
+          | 'BigramLanguageModelMultiHeadAttention'
+          | 'GPTModelGPU';
       };
       optimizerData: {
         serializedData: unknown;
-        type: 'UniversalAdamWOptimizer';
+        type: 'UniversalAdamWOptimizer' | 'SDGOptimizer';
       };
       type: 'completed';
     };
@@ -55,15 +67,65 @@ self.onmessage = async (event: MessageEvent<TrainWorkerMessage>) => {
       message: `Initializing model and optimizer...`,
     });
 
-    // Dynamically import classes
-    const { GPTModel } = await import('../llm/models/GPTModel.ts');
-    const { UniversalAdamWOptimizer } = await import('../llm/optimizers/UniversalAdamWOptimizer.ts');
+    // Restore model from serialized data based on type
+    let model;
+    switch (modelData.type) {
+      case 'BigramLanguageModel': {
+        const { BigramLanguageModel } = await import('../llm/models/BigramLanguageModel.ts');
+        model = BigramLanguageModel.fromSerializedData(modelData.serializedData);
+        break;
+      }
+      case 'BigramLanguageModelMultiHeadAttention': {
+        const { BigramLanguageModelMultiHeadAttention } =
+          await import('../llm/models/BigramLanguageModelMultiHeadAttention.ts');
+        model = BigramLanguageModelMultiHeadAttention.fromSerializedData(modelData.serializedData);
+        break;
+      }
+      case 'BigramLanguageModelSingleHeadAttention': {
+        const { BigramLanguageModelSingleHeadAttention } =
+          await import('../llm/models/BigramLanguageModelSingleHeadAttention.ts');
+        model = BigramLanguageModelSingleHeadAttention.fromSerializedData(modelData.serializedData);
+        break;
+      }
+      case 'BigramLanguageModelWithFF': {
+        const { BigramLanguageModelWithFF } = await import('../llm/models/BigramLanguageModelWithFF.ts');
+        model = BigramLanguageModelWithFF.fromSerializedData(modelData.serializedData);
+        break;
+      }
+      case 'GPTModel': {
+        const { GPTModel } = await import('../llm/models/GPTModel.ts');
+        model = GPTModel.fromSerializedData(modelData.serializedData as never);
+        break;
+      }
+      case 'GPTModelGPU': {
+        const { GPTModelGPU } = await import('../llm/models/gpu/GPTModelGPU.ts');
+        model = GPTModelGPU.fromSerializedData(modelData.serializedData);
+        break;
+      }
+      default: {
+        const exhaustiveCheck: never = modelData.type;
+        throw new Error(`Unsupported model type: ${exhaustiveCheck}`);
+      }
+    }
 
-    // Restore model from serialized data
-    const model = GPTModel.fromSerializedData(modelData.serializedData as never);
-
-    // Restore optimizer from serialized data
-    const optimizer = UniversalAdamWOptimizer.fromSerializedData(optimizerData.serializedData as never, model);
+    // Restore optimizer from serialized data based on type
+    let optimizer;
+    switch (optimizerData.type) {
+      case 'SDGOptimizer': {
+        const { SDGOptimizer } = await import('../llm/optimizers/SDGOptimizer.ts');
+        optimizer = SDGOptimizer.fromSerializedData(optimizerData.serializedData as never, model);
+        break;
+      }
+      case 'UniversalAdamWOptimizer': {
+        const { UniversalAdamWOptimizer } = await import('../llm/optimizers/UniversalAdamWOptimizer.ts');
+        optimizer = UniversalAdamWOptimizer.fromSerializedData(optimizerData.serializedData as never, model);
+        break;
+      }
+      default: {
+        const exhaustiveCheck: never = optimizerData.type;
+        throw new Error(`Unsupported optimizer type: ${exhaustiveCheck}`);
+      }
+    }
 
     self.postMessage({
       type: 'status',
@@ -119,11 +181,11 @@ self.onmessage = async (event: MessageEvent<TrainWorkerMessage>) => {
     self.postMessage({
       type: 'completed',
       modelData: {
-        type: 'GPTModel',
+        type: modelData.type,
         serializedData: model.getSerializedData(),
       },
       optimizerData: {
-        type: 'UniversalAdamWOptimizer',
+        type: optimizerData.type,
         serializedData: optimizer.getSerializedData(),
       },
       avgIterationTime: avgTime,

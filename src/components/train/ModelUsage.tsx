@@ -1,8 +1,7 @@
 import { type Dispatch, type SetStateAction } from 'react';
 
 import type { SelectedFile } from '@/components/input/InputConfig.tsx';
-import type { Optimizer } from '@/llm/optimizers/utils.ts';
-import type { LanguageModel, Tokenizer } from '@/llm/types.ts';
+import type { LanguageModel, Optimizer, Tokenizer } from '@/llm/types.ts';
 
 import { BackButton } from '@/components/layout/BackButton.tsx';
 import { StepLayout } from '@/components/layout/StepLayout.tsx';

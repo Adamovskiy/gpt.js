@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 
-import type { Trainable } from '@/llm/types.ts';
+import type { Optimizer, Trainable } from '@/llm/types.ts';
 
 import { BackButton } from '@/components/layout/BackButton.tsx';
 import { NextButton } from '@/components/layout/NextButton.tsx';
@@ -10,8 +10,8 @@ import { Field, FieldLabel } from '@/components/ui/field.tsx';
 import { Input } from '@/components/ui/input.tsx';
 import { Label } from '@/components/ui/label.tsx';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.tsx';
+import { SDGOptimizer } from '@/llm/optimizers/SDGOptimizer.ts';
 import { UniversalAdamWOptimizer } from '@/llm/optimizers/UniversalAdamWOptimizer.ts';
-import { type Optimizer } from '@/llm/optimizers/utils.ts';
 
 type OptimizerType = 'adamw' | 'sgd';
 
@@ -44,8 +44,7 @@ export function OptimizerConfig({
     if (optimizerType === 'adamw') {
       optimizerInstance = new UniversalAdamWOptimizer(model, learningRate, beta1, beta2, epsilon, weightDecay);
     } else {
-      // optimizerInstance = new SDGOptimizer(model, learningRate);
-      throw new Error('SDG optimizer is not implemented for an arbitrary parameters model');
+      optimizerInstance = new SDGOptimizer(model, learningRate);
     }
 
     onComplete(optimizerInstance);

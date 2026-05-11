@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import type { LanguageModel, Tokenizer } from '@/llm/types.ts';
+import type { LanguageModel, Optimizer, Tokenizer } from '@/llm/types.ts';
 
 import { InputConfig, type SelectedFile } from '@/components/input/InputConfig.tsx';
 import { ModelConfig } from '@/components/model/ModelConfig.tsx';
@@ -8,7 +8,6 @@ import { OptimizerConfig } from '@/components/optimizer/OptimizerConfig.tsx';
 import { TokenizerSetup } from '@/components/tokenizer/TokenizerSetup.tsx';
 import { ModelUsage } from '@/components/train/ModelUsage.tsx';
 import { seed } from '@/lib/random.ts';
-import { type Optimizer } from '@/llm/optimizers/utils.ts';
 
 type AppStep = 'input' | 'tokenizer' | 'model' | 'optimizer' | 'train';
 

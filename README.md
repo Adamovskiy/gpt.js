@@ -128,7 +128,7 @@ This project helps you understand:
 ## Roadmap & TODO
 - [ ] Fix linter and type errors
 - [ ] Fix UX of model usage page: persist stats, limit chart's RAM usage, abort training, etc
-- [ ] Implement serialization of all optimizers and models
+- [ ] Implement serialization of all models
 - [ ] Tests and edge case handling
 - [ ] Overfitting analysis
 - [ ] GPU implementation of AdamW optimizer
@@ -137,7 +137,6 @@ This project helps you understand:
 - [ ] Optimizer operation visualization
 - [ ] Tensor operations visualization from `tensorOps.ts`
 - [ ] Improvement of model configuration steps UX
-- [ ] SDG optimizer for an arbitrary parameters model
 - [ ] Make blockSize and batchSize configurable
 - [ ] Stream inference output token by token
 

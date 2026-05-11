@@ -1,3 +1,4 @@
+import type { BigramLanguageModelSingleHeadAttention } from '@/llm/models/BigramLanguageModelSingleHeadAttention.ts';
 import type { LanguageModel, Parameter } from '@/llm/types.ts';
 
 import { random } from '@/lib/random.ts';
@@ -15,13 +16,13 @@ import { Linear } from './Linear.ts';
 import { MultiHeadAttention } from './MultiHeadAttention.ts';
 import { concatBatched, crossEntropy, sampleMultinomial, softmaxBatched } from './utils.ts';
 
-export class BigramLanguageModelMultiHeadAttention implements LanguageModel {
+export class BigramLanguageModelMultiHeadAttention implements LanguageModel<never> {
   readonly contextSize: number;
+
   readonly languageModelingHead: Linear;
   readonly multiHeadAttention: MultiHeadAttention;
   readonly positionEmbeddingTable: Tensor2d;
   readonly tokenEmbeddingTable: Tensor2d;
-
   constructor(vocabSize: number, numberEmbeddingDimensions: number, contextSize: number, numHeads: number) {
     this.contextSize = contextSize;
     this.tokenEmbeddingTable = Array.from({ length: vocabSize }, () =>
@@ -33,6 +34,10 @@ export class BigramLanguageModelMultiHeadAttention implements LanguageModel {
 
     this.multiHeadAttention = new MultiHeadAttention(numberEmbeddingDimensions, numHeads);
     this.languageModelingHead = new Linear(numberEmbeddingDimensions, vocabSize);
+  }
+
+  static fromSerializedData(_data: unknown): BigramLanguageModelSingleHeadAttention {
+    throw new Error('Not implemented yet');
   }
 
   computeGradients(contextTokens: Tensor2d, targets: Tensor2d): Record<string, Tensor2d | Tensor1d> {
@@ -167,5 +172,9 @@ export class BigramLanguageModelMultiHeadAttention implements LanguageModel {
     });
 
     return params;
+  }
+
+  getSerializedData(): never {
+    throw new Error('Not implemented yet');
   }
 }

@@ -16,13 +16,13 @@ import { Head } from './Head.ts';
 import { Linear } from './Linear.ts';
 import { concatBatched, crossEntropy, sampleMultinomial, softmaxBatched } from './utils.ts';
 
-export class BigramLanguageModelSingleHeadAttention implements LanguageModel {
+export class BigramLanguageModelSingleHeadAttention implements LanguageModel<never> {
   readonly contextSize: number;
+
   readonly languageModelingHead: Linear; // Transforms attended embeddings to logits
   readonly positionEmbeddingTable: Tensor2d; // blockSize x numberEmbeddingDimensions
   readonly selfAttention: Head; // single self-attention head
   readonly tokenEmbeddingTable: Tensor2d; // vocabSize x numberEmbeddingDimensions
-
   constructor(vocabSize: number, numberEmbeddingDimensions: number, contextSize: number) {
     this.contextSize = contextSize;
     this.tokenEmbeddingTable = Array.from({ length: vocabSize }, () =>
@@ -34,6 +34,10 @@ export class BigramLanguageModelSingleHeadAttention implements LanguageModel {
 
     this.selfAttention = new Head(numberEmbeddingDimensions, numberEmbeddingDimensions);
     this.languageModelingHead = new Linear(numberEmbeddingDimensions, vocabSize);
+  }
+
+  static fromSerializedData(_data: unknown): BigramLanguageModelSingleHeadAttention {
+    throw new Error('Not implemented yet');
   }
 
   computeGradients(contextTokens: Tensor2d, targets: Tensor2d): Record<string, Tensor2d | Tensor1d> {
@@ -142,5 +146,9 @@ export class BigramLanguageModelSingleHeadAttention implements LanguageModel {
       { name: 'lmWeights', data: this.languageModelingHead.weights },
       { name: 'lmBias', data: this.languageModelingHead.bias },
     ];
+  }
+
+  getSerializedData(): never {
+    throw new Error('Not implemented yet');
   }
 }

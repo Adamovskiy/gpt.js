@@ -15,7 +15,7 @@ import {
 import { Linear } from './Linear.ts';
 import { concatBatched, crossEntropy, sampleMultinomial, softmaxBatched } from './utils.ts';
 
-export class BigramLanguageModel implements LanguageModel {
+export class BigramLanguageModel implements LanguageModel<never> {
   readonly contextSize: number;
   readonly languageModelingHead: Linear; // Transforms embeddings to logits
   readonly positionEmbeddingTable: Tensor2d; // blockSize x numberEmbeddingDimensions
@@ -31,6 +31,10 @@ export class BigramLanguageModel implements LanguageModel {
     );
 
     this.languageModelingHead = new Linear(numberEmbeddingDimensions, vocabSize);
+  }
+
+  static fromSerializedData(_data: unknown): BigramLanguageModel {
+    throw new Error('Not implemented yet');
   }
 
   computeGradients(contextTokens: Tensor2d, targets: Tensor2d): Record<string, Tensor2d | Tensor1d> {
@@ -129,5 +133,9 @@ export class BigramLanguageModel implements LanguageModel {
       { name: 'lmWeights', data: this.languageModelingHead.weights },
       { name: 'lmBias', data: this.languageModelingHead.bias },
     ];
+  }
+
+  getSerializedData(): never {
+    throw new Error('Not implemented yet');
   }
 }

@@ -1,9 +1,9 @@
 import { random } from '@/lib/random.ts';
-import { matrixMultiply, sum1d, type Tensor1d } from '@/llm/tensorOps.ts';
+import { matrixMultiply, sum1d, type Tensor1d, type Tensor2d } from '@/llm/tensorOps.ts';
 
 export class Linear {
-  readonly bias: number[];
-  readonly weights: number[][];
+  readonly bias: Tensor1d;
+  readonly weights: Tensor2d;
 
   constructor(inputSize: number, outputSize: number, useBias = true) {
     this.weights = Array.from({ length: inputSize }, () => Array.from({ length: outputSize }, () => random() * 0.01));

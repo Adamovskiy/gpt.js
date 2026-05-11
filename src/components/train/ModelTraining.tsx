@@ -12,8 +12,7 @@ import {
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
 
 import type { SelectedFile } from '@/components/input/InputConfig.tsx';
-import type { Optimizer } from '@/llm/optimizers/utils.ts';
-import type { LanguageModel, Tokenizer } from '@/llm/types.ts';
+import type { LanguageModel, Optimizer, Tokenizer } from '@/llm/types.ts';
 import type { TrainWorkerMessage, TrainWorkerResponse } from '@/workers/train.worker.ts';
 
 import { Button } from '@/components/ui/button.tsx';
@@ -86,12 +85,18 @@ export function ModelTraining({
         iterations,
         trainData,
         modelData: {
-          type: 'GPTModel',
-          serializedData: (model as { getSerializedData(): unknown }).getSerializedData(),
+          type: model.constructor.name as
+            | 'GPTModel'
+            | 'BigramLanguageModel'
+            | 'BigramLanguageModelWithFF'
+            | 'BigramLanguageModelSingleHeadAttention'
+            | 'BigramLanguageModelMultiHeadAttention'
+            | 'GPTModelGPU',
+          serializedData: model.getSerializedData(),
         },
         optimizerData: {
-          type: 'UniversalAdamWOptimizer',
-          serializedData: (optimizer as { getSerializedData(): unknown }).getSerializedData(),
+          type: optimizer.constructor.name as 'UniversalAdamWOptimizer' | 'SDGOptimizer',
+          serializedData: optimizer.getSerializedData(),
         },
         tokenizerData: {
           type: tokenizer.constructor.name,
@@ -134,16 +139,66 @@ export function ModelTraining({
         // if (response.type === 'completed')
         console.log('Training completed, updating model and optimizer with trained versions');
 
-        // Import both classes and restore trained model and optimizer
-        void Promise.all([
-          import('@/llm/models/GPTModel.ts'),
-          import('@/llm/optimizers/UniversalAdamWOptimizer.ts'),
-        ]).then(([{ GPTModel }, { UniversalAdamWOptimizer }]) => {
-          const trainedModel = GPTModel.fromSerializedData(response.modelData.serializedData as never);
-          const trainedOptimizer = UniversalAdamWOptimizer.fromSerializedData(
-            response.optimizerData.serializedData as never,
-            trainedModel,
-          );
+        // Dynamically import and restore model based on type
+        const restoreModel = async () => {
+          switch (response.modelData.type) {
+            case 'BigramLanguageModel': {
+              const { BigramLanguageModel } = await import('@/llm/models/BigramLanguageModel.ts');
+              return BigramLanguageModel.fromSerializedData(response.modelData.serializedData);
+            }
+            case 'BigramLanguageModelMultiHeadAttention': {
+              const { BigramLanguageModelMultiHeadAttention } =
+                await import('@/llm/models/BigramLanguageModelMultiHeadAttention.ts');
+              return BigramLanguageModelMultiHeadAttention.fromSerializedData(response.modelData.serializedData);
+            }
+            case 'BigramLanguageModelSingleHeadAttention': {
+              const { BigramLanguageModelSingleHeadAttention } =
+                await import('@/llm/models/BigramLanguageModelSingleHeadAttention.ts');
+              return BigramLanguageModelSingleHeadAttention.fromSerializedData(response.modelData.serializedData);
+            }
+            case 'BigramLanguageModelWithFF': {
+              const { BigramLanguageModelWithFF } = await import('@/llm/models/BigramLanguageModelWithFF.ts');
+              return BigramLanguageModelWithFF.fromSerializedData(response.modelData.serializedData);
+            }
+            case 'GPTModel': {
+              const { GPTModel } = await import('@/llm/models/GPTModel.ts');
+              return GPTModel.fromSerializedData(response.modelData.serializedData as never);
+            }
+            case 'GPTModelGPU': {
+              const { GPTModelGPU } = await import('@/llm/models/gpu/GPTModelGPU.ts');
+              return GPTModelGPU.fromSerializedData(response.modelData.serializedData);
+            }
+            default: {
+              const exhaustiveCheck: never = response.modelData.type;
+              throw new Error(`Unsupported model type: ${exhaustiveCheck}`);
+            }
+          }
+        };
+
+        // Dynamically import and restore optimizer based on type
+        const restoreOptimizer = async (trainedModel: LanguageModel) => {
+          switch (response.optimizerData.type) {
+            case 'SDGOptimizer': {
+              const { SDGOptimizer } = await import('@/llm/optimizers/SDGOptimizer.ts');
+              return SDGOptimizer.fromSerializedData(response.optimizerData.serializedData as never, trainedModel);
+            }
+            case 'UniversalAdamWOptimizer': {
+              const { UniversalAdamWOptimizer } = await import('@/llm/optimizers/UniversalAdamWOptimizer.ts');
+              return UniversalAdamWOptimizer.fromSerializedData(
+                response.optimizerData.serializedData as never,
+                trainedModel,
+              );
+            }
+            default: {
+              const exhaustiveCheck: never = response.optimizerData.type;
+              throw new Error(`Unsupported optimizer type: ${exhaustiveCheck}`);
+            }
+          }
+        };
+
+        // Restore both model and optimizer
+        void restoreModel().then(async (trainedModel) => {
+          const trainedOptimizer = await restoreOptimizer(trainedModel);
 
           setModel(trainedModel);
           setOptimizer(trainedOptimizer);

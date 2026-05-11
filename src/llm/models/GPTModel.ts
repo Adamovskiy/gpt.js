@@ -41,7 +41,7 @@ export interface GPTModelSerializedData {
   languageModelingHead: { bias: Tensor1d; weights: Tensor2d };
 }
 
-export class GPTModel implements LanguageModel {
+export class GPTModel implements LanguageModel<GPTModelSerializedData> {
   readonly blocks: TransformerBlock[];
   readonly contextSize: number;
   readonly languageModelingHead: Linear;

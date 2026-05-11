@@ -5,12 +5,15 @@ export interface Parameter {
   data: Tensor2d | Tensor1d;
 }
 
-export interface Tokenizer<T = unknown> {
+export interface Serializable<T = unknown> {
+  getSerializedData(): T;
+}
+
+export interface Tokenizer<T = unknown> extends Serializable<T> {
   encode(str: string): Tensor1d;
   decode(indices: Tensor1d): string;
   getVocabSize(): number;
   getVocab(): string[];
-  getSerializedData(): T;
 }
 
 export interface Trainable {
@@ -23,6 +26,10 @@ export interface Trainable {
   ): Record<string, Tensor2d | Tensor1d>;
 }
 
-export interface LanguageModel extends Trainable {
+export interface LanguageModel<T = unknown> extends Serializable<T>, Trainable {
   generate(idx: Tensor2d, maxNewTokens: number): Promise<Tensor2d>;
+}
+
+export interface Optimizer<T = unknown> extends Serializable<T> {
+  train(contextTokens: Tensor2d, outputs: Tensor2d): Promise<number>;
 }

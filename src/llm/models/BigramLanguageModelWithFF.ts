@@ -16,7 +16,7 @@ import { Linear } from './Linear.ts';
 import { MultiHeadAttention } from './MultiHeadAttention.ts';
 import { concatBatched, crossEntropy, sampleMultinomial, softmaxBatched } from './utils.ts';
 
-export class BigramLanguageModelWithFF implements LanguageModel {
+export class BigramLanguageModelWithFF implements LanguageModel<never> {
   readonly contextSize: number;
   readonly feedForward: FeedForward;
   readonly languageModelingHead: Linear;
@@ -36,6 +36,10 @@ export class BigramLanguageModelWithFF implements LanguageModel {
     this.multiHeadAttention = new MultiHeadAttention(numberEmbeddingDimensions, numHeads);
     this.feedForward = new FeedForward(numberEmbeddingDimensions);
     this.languageModelingHead = new Linear(numberEmbeddingDimensions, vocabSize);
+  }
+
+  static fromSerializedData(_data: unknown): BigramLanguageModelWithFF {
+    throw new Error('Not implemented yet');
   }
 
   computeGradients(contextTokens: Tensor2d, targets: Tensor2d): Record<string, Tensor2d | Tensor1d> {
@@ -201,5 +205,9 @@ export class BigramLanguageModelWithFF implements LanguageModel {
     });
 
     return params;
+  }
+
+  getSerializedData(): never {
+    throw new Error('Not implemented yet');
   }
 }

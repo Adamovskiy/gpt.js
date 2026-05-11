@@ -16,6 +16,7 @@ import { BigramLanguageModelSingleHeadAttention } from '@/llm/models/BigramLangu
 import { GPTModel } from '@/llm/models/GPTModel.ts';
 import { GPTModelGPU } from '@/llm/models/gpu/GPTModelGPU.ts';
 import { blockSize } from '@/llm/sampling.ts';
+import { errorMessage } from '@/lib/utils.ts';
 
 interface BigramConfig {
   type: 'bigram';
@@ -329,7 +330,7 @@ export function ModelConfig({
       onComplete(modelInstance);
     } catch (error) {
       console.error('Failed to create model:', error);
-      alert(`Failed to create ${currentConfig.type} model: ${(error as Error).message}`);
+      alert(`Failed to create ${currentConfig.type} model: ${errorMessage(error)}`);
     } finally {
       setIsCreating(false);
     }

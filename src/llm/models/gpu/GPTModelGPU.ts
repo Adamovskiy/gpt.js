@@ -19,7 +19,7 @@ import { LayerNormGPU } from './LayerNormGPU.ts';
 import { LinearGPU } from './LinearGPU.ts';
 import { TransformerBlockGPU } from './TransformerBlockGPU.ts';
 
-export class GPTModelGPU implements LanguageModel {
+export class GPTModelGPU implements LanguageModel<never> {
   readonly blocks: TransformerBlockGPU[];
   readonly contextSize: number;
   readonly languageModelingHead: LinearGPU;
@@ -27,7 +27,6 @@ export class GPTModelGPU implements LanguageModel {
   readonly positionEmbeddingTable: Tensor2d;
   readonly tokenEmbeddingTable: Tensor2d;
   private device: GPUDevice | null = null;
-
   private gpuOps: GPUOperations | null = null;
 
   constructor(
@@ -49,6 +48,10 @@ export class GPTModelGPU implements LanguageModel {
     this.blocks = Array.from({ length: numLayers }, () => new TransformerBlockGPU(numberEmbeddingDimensions, numHeads));
     this.lnFinal = new LayerNormGPU(numberEmbeddingDimensions);
     this.languageModelingHead = new LinearGPU(numberEmbeddingDimensions, vocabSize);
+  }
+
+  static fromSerializedData(_data: unknown): GPTModelGPU {
+    throw new Error('Not implemented yet');
   }
 
   computeGradients(contextTokens: Tensor2d, targets: Tensor2d): Record<string, Tensor2d | Tensor1d> {
@@ -295,6 +298,10 @@ export class GPTModelGPU implements LanguageModel {
     });
 
     return params;
+  }
+
+  getSerializedData(): never {
+    throw new Error('Not implemented yet');
   }
 
   async initializeGPU(): Promise<void> {
