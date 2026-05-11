@@ -53,6 +53,7 @@ export default defineConfig(
           devDependencies: [
             '**/*.test.{ts,tsx,js,jsx}',
             '**/*.spec.{ts,tsx,js,jsx}',
+            '**/testUtils.ts',
             '**/vite.config.{ts,js}',
             '**/vitest.config.{ts,js}',
             '**/eslint.config.{js,mjs}',

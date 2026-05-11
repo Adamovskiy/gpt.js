@@ -1,4 +1,4 @@
-import { it } from 'node:test';
+import { it } from 'vitest';
 
 import { assertArraysClose, assertMatrix2dClose, assertMatrix3dClose } from '../testUtils.ts';
 import {
