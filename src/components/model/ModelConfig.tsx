@@ -1,9 +1,10 @@
-import { ChevronLeft, ChevronRight, Loader } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
 import type { LanguageModel } from '@/llm/types.ts';
 
-import { Button } from '@/components/ui/button.tsx';
+import { BackButton } from '@/components/layout/BackButton.tsx';
+import { NextButton } from '@/components/layout/NextButton.tsx';
+import { StepLayout } from '@/components/layout/StepLayout.tsx';
 import { Card } from '@/components/ui/card.tsx';
 import { Field, FieldLabel } from '@/components/ui/field.tsx';
 import { Input } from '@/components/ui/input.tsx';
@@ -367,13 +368,20 @@ export function ModelConfig({
   };
 
   return (
-    <Card className="p-6">
-      <div className="space-y-6">
-        <div>
-          <h3 className="text-lg font-semibold">Configure Model</h3>
-          <p className="text-sm text-muted-foreground">Choose the model architecture and configure its parameters</p>
-        </div>
-
+    <StepLayout
+      backButton={<BackButton disabled={isCreating} onClick={onBack} />}
+      completeButton={
+        <NextButton
+          disabled={isCreating || !currentConfig}
+          loading={isCreating}
+          onClick={() => void createModel()}
+          title={isCreating ? 'Creating model...' : 'Create model'}
+        />
+      }
+      subtitle="Choose the model architecture and configure its parameters"
+      title="4. Configure Model"
+    >
+      <Card className="p-6">
         <div className="space-y-4">
           <div className="space-y-3">
             <Field>
@@ -413,28 +421,7 @@ export function ModelConfig({
             </div>
           )}
         </div>
-
-        <div className="flex justify-between">
-          <Button disabled={isCreating} onClick={onBack} variant="outline">
-            <ChevronLeft className="mr-1 size-4" />
-            Back
-          </Button>
-
-          <Button disabled={isCreating || !currentConfig} onClick={() => void createModel()}>
-            {isCreating ? (
-              <>
-                <Loader className="mr-2 size-4 animate-spin" />
-                Creating Model...
-              </>
-            ) : (
-              <>
-                Create Model
-                <ChevronRight className="ml-1 size-4" />
-              </>
-            )}
-          </Button>
-        </div>
-      </div>
-    </Card>
+      </Card>
+    </StepLayout>
   );
 }

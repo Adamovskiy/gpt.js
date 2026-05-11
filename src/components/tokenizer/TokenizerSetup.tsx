@@ -1,11 +1,13 @@
-import { ChevronLeft, ChevronRight, Loader } from 'lucide-react';
+import { Loader } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { Tokenizer } from '@/llm/types.ts';
 import type { TokenizerWorkerMessage, TokenizerWorkerResponse } from '@/workers/tokenizer.worker.ts';
 
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { BackButton } from '@/components/layout/BackButton.tsx';
+import { NextButton } from '@/components/layout/NextButton.tsx';
+import { StepLayout } from '@/components/layout/StepLayout.tsx';
+import { Card, CardContent } from '@/components/ui/card';
 import { Field, FieldLabel } from '@/components/ui/field.tsx';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -128,13 +130,20 @@ export function TokenizerSetup({ fileContent, fileName, onComplete, onBack }: To
   }, []);
 
   const renderSetupStep = () => (
-    <Card className="p-6">
-      <div className="space-y-6">
-        <div>
-          <h3 className="text-lg font-semibold">Create Tokenizer</h3>
-          <p className="text-sm text-muted-foreground">Configure and create a tokenizer for &#34;{fileName}&#34;</p>
-        </div>
-
+    <StepLayout
+      backButton={<BackButton disabled={isCreating} onClick={onBack} />}
+      completeButton={
+        <NextButton
+          disabled={isCreating}
+          loading={isCreating}
+          onClick={createTokenizer}
+          title={isCreating ? 'Creating...' : 'Create tokenizer'}
+        />
+      }
+      subtitle={`Configure and create a tokenizer for "${fileName}"`}
+      title="2. Configure tokenizer"
+    >
+      <Card className="p-6">
         <div className="space-y-4">
           <div className="space-y-3">
             <Field>
@@ -229,37 +238,23 @@ export function TokenizerSetup({ fileContent, fileName, onComplete, onBack }: To
             Error: {error}
           </div>
         )}
-
-        <div className="flex justify-between">
-          <Button disabled={isCreating} onClick={onBack} variant="outline">
-            <ChevronLeft className="mr-1 size-4" />
-            Back
-          </Button>
-          <Button disabled={isCreating} onClick={createTokenizer}>
-            {isCreating ? (
-              <>
-                <Loader className="mr-2 size-4 animate-spin" />
-                Creating...
-              </>
-            ) : (
-              <>
-                Create Tokenizer
-                <ChevronRight className="ml-1 size-4" />
-              </>
-            )}
-          </Button>
-        </div>
-      </div>
-    </Card>
+      </Card>
+    </StepLayout>
   );
 
   const renderIntrospectStep = () => (
-    <div className="space-y-4">
+    <StepLayout
+      backButton={<BackButton onClick={handleBackToSetup} />}
+      completeButton={<NextButton onClick={handleFinish} title="Configure model"></NextButton>}
+      subtitle={
+        'Review the details of your created tokenizer, explore its vocabulary, and see how it tokenizes your input text.'
+      }
+      title="3. Review tokenizer"
+    >
       {tokenizer && (
         <>
-          <Card className="p-6">
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Tokenizer Overview</h3>
+          <Card>
+            <CardContent>
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <span className="font-medium">Type:</span> {tokenizerType} Tokenizer
@@ -291,25 +286,14 @@ export function TokenizerSetup({ fileContent, fileName, onComplete, onBack }: To
                   </p>
                 )}
               </div>
-            </div>
+            </CardContent>
           </Card>
 
           <Vocabulary tokenizer={tokenizer} />
           <TokenizerDemo tokenizer={tokenizer} />
-
-          <div className="flex justify-between">
-            <Button onClick={handleBackToSetup} variant="outline">
-              <ChevronLeft className="mr-1 size-4" />
-              Back: Change Tokenizer
-            </Button>
-            <Button onClick={handleFinish}>
-              Next: Configure Model
-              <ChevronRight className="ml-1 size-4" />
-            </Button>
-          </div>
         </>
       )}
-    </div>
+    </StepLayout>
   );
 
   switch (currentStep) {

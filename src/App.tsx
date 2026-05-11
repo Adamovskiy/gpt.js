@@ -7,7 +7,6 @@ import { ModelConfig } from '@/components/model/ModelConfig.tsx';
 import { OptimizerConfig } from '@/components/optimizer/OptimizerConfig.tsx';
 import { TokenizerSetup } from '@/components/tokenizer/TokenizerSetup.tsx';
 import { ModelUsage } from '@/components/train/ModelUsage.tsx';
-import { Button } from '@/components/ui/button.tsx';
 import { seed } from '@/lib/random.ts';
 import { type Optimizer } from '@/llm/optimizers/utils.ts';
 
@@ -49,7 +48,7 @@ function App() {
     setCurrentStep('input');
   }, []);
 
-  const handleProceedToTokenizer = useCallback(() => {
+  const handleInputComplete = useCallback(() => {
     if (selectedFile) {
       setCurrentStep('tokenizer');
     }
@@ -75,30 +74,24 @@ function App() {
     setCurrentStep('optimizer');
   }, []);
 
-  const renderInputStep = () => (
-    <div className="space-y-4">
-      <InputConfig onSelectedFileChange={handleContentLoad} selectedFile={selectedFile} />
-      {selectedFile && (
-        <div className="mt-4">
-          <Button onClick={handleProceedToTokenizer}>Next: Create Tokenizer</Button>
-        </div>
+  return (
+    <main className="mx-auto flex max-w-3xl flex-col gap-4 px-2 py-4">
+      {currentStep === 'input' && (
+        <InputConfig
+          onComplete={handleInputComplete}
+          onSelectedFileChange={handleContentLoad}
+          selectedFile={selectedFile}
+        />
       )}
-    </div>
-  );
-
-  const renderTokenizerStep = () =>
-    selectedFile && (
-      <TokenizerSetup
-        fileContent={selectedFile.content}
-        fileName={selectedFile.name}
-        onBack={handleBackToInput}
-        onComplete={handleTokenizerComplete}
-      />
-    );
-
-  const renderModelStep = () => (
-    <div>
-      {tokenizer && (
+      {currentStep === 'tokenizer' && selectedFile && (
+        <TokenizerSetup
+          fileContent={selectedFile.content}
+          fileName={selectedFile.name}
+          onBack={handleBackToInput}
+          onComplete={handleTokenizerComplete}
+        />
+      )}
+      {currentStep === 'model' && tokenizer && (
         <ModelConfig
           onBack={() => {
             setCurrentStep('tokenizer');
@@ -107,40 +100,22 @@ function App() {
           vocabSize={tokenizer.getVocabSize()}
         />
       )}
-    </div>
-  );
-
-  const renderOptimizerStep = () => (
-    <div>
-      {model && <OptimizerConfig model={model} onBack={handleBackToModel} onComplete={handleOptimizerComplete} />}
-    </div>
-  );
-
-  const renderTrainStep = () =>
-    tokenizer &&
-    model &&
-    optimizer &&
-    selectedFile && (
-      <ModelUsage
-        lossChartData={lossChartData}
-        model={model}
-        onBack={handleBackToOptimizer}
-        optimizer={optimizer}
-        selectedFile={selectedFile}
-        setLossChartData={setLossChartData}
-        setModel={setModel}
-        setOptimizer={setOptimizer}
-        tokenizer={tokenizer}
-      />
-    );
-
-  return (
-    <main className="mx-auto flex max-w-3xl flex-col gap-4 px-2 py-4">
-      {currentStep === 'input' && renderInputStep()}
-      {currentStep === 'tokenizer' && renderTokenizerStep()}
-      {currentStep === 'model' && renderModelStep()}
-      {currentStep === 'optimizer' && renderOptimizerStep()}
-      {currentStep === 'train' && renderTrainStep()}
+      {currentStep === 'optimizer' && model && (
+        <OptimizerConfig model={model} onBack={handleBackToModel} onComplete={handleOptimizerComplete} />
+      )}
+      {currentStep === 'train' && tokenizer && model && optimizer && selectedFile && (
+        <ModelUsage
+          lossChartData={lossChartData}
+          model={model}
+          onBack={handleBackToOptimizer}
+          optimizer={optimizer}
+          selectedFile={selectedFile}
+          setLossChartData={setLossChartData}
+          setModel={setModel}
+          setOptimizer={setOptimizer}
+          tokenizer={tokenizer}
+        />
+      )}
     </main>
   );
 }

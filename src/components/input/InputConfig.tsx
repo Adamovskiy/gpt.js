@@ -2,8 +2,10 @@ import { FileText, Upload } from 'lucide-react';
 import { useCallback, useState } from 'react';
 
 import { InputPreview } from '@/components/input/InputPreview.tsx';
+import { NextButton } from '@/components/layout/NextButton.tsx';
+import { StepLayout } from '@/components/layout/StepLayout.tsx';
 import { Button } from '@/components/ui/button.tsx';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { FileInput } from '@/components/ui/fileInput.tsx';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
@@ -52,7 +54,9 @@ function InputOptionButton({
 export function InputConfig({
   selectedFile,
   onSelectedFileChange,
+  onComplete,
 }: {
+  onComplete: () => void;
   onSelectedFileChange: (selectedFile: SelectedFile | null) => void;
   selectedFile: SelectedFile | null;
 }) {
@@ -129,69 +133,72 @@ export function InputConfig({
   );
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Input Source Selection</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="space-y-3">
-          <Label className="text-sm font-medium">Choose input source:</Label>
-          <div
-            className="
+    <StepLayout
+      completeButton={<NextButton disabled={!selectedFile} onClick={onComplete} title="Configure tokenizer" />}
+      subtitle="Select a training dataset for your language model. You can choose from popular public datasets or upload your own .txt file. The content of the selected file will be used to train your custom language model in the next steps."
+      title="1. Upload training data"
+    >
+      <Card>
+        <CardContent className="space-y-4">
+          <div className="space-y-3">
+            <Label className="text-sm font-medium">Choose input source:</Label>
+            <div
+              className="
               grid grid-cols-1 gap-2
               sm:grid-cols-3
             "
-          >
-            <InputOptionButton
-              disabled={isLoading}
-              onSelect={() => {
-                selectInputSource('war_and_peace');
-              }}
-              selected={inputSource === 'war_and_peace'}
-              subtitle="A novel by Lev Tolstoy"
-              title="war_and_peace.txt"
-              variant="preset"
-            />
+            >
+              <InputOptionButton
+                disabled={isLoading}
+                onSelect={() => {
+                  selectInputSource('war_and_peace');
+                }}
+                selected={inputSource === 'war_and_peace'}
+                subtitle="A novel by Lev Tolstoy"
+                title="war_and_peace.txt"
+                variant="preset"
+              />
 
-            <InputOptionButton
-              disabled={isLoading}
-              onSelect={() => {
-                selectInputSource('shakespear');
-              }}
-              selected={inputSource === 'shakespear'}
-              subtitle="tiny_shakespeare dataset"
-              title="shakespear.txt"
-              variant="preset"
-            />
+              <InputOptionButton
+                disabled={isLoading}
+                onSelect={() => {
+                  selectInputSource('shakespear');
+                }}
+                selected={inputSource === 'shakespear'}
+                subtitle="tiny_shakespeare dataset"
+                title="shakespear.txt"
+                variant="preset"
+              />
 
-            <InputOptionButton
-              disabled={isLoading}
-              onSelect={() => {
-                selectInputSource('upload');
-              }}
-              selected={inputSource === 'upload'}
-              subtitle="Custom .txt"
-              title="Upload file"
-              variant="upload"
-            />
+              <InputOptionButton
+                disabled={isLoading}
+                onSelect={() => {
+                  selectInputSource('upload');
+                }}
+                selected={inputSource === 'upload'}
+                subtitle="Custom .txt"
+                title="Upload file"
+                variant="upload"
+              />
+            </div>
           </div>
-        </div>
 
-        {inputSource === 'upload' && (
-          <FileInput
-            accept=".txt"
-            disabled={isLoading}
-            label="Select .txt file:"
-            onChange={(file) => {
-              void handleCustomFileUpload(file);
-            }}
-          />
-        )}
+          {inputSource === 'upload' && (
+            <FileInput
+              accept=".txt"
+              disabled={isLoading}
+              label="Select .txt file:"
+              onChange={(file) => {
+                void handleCustomFileUpload(file);
+              }}
+            />
+          )}
 
-        {selectedFile && <InputPreview fileContent={selectedFile.content} fileName={selectedFile.name} />}
+          {selectedFile && <InputPreview fileContent={selectedFile.content} fileName={selectedFile.name} />}
 
-        {isLoading && <div className="text-sm text-muted-foreground">Loading file content...</div>}
-      </CardContent>
-    </Card>
+          {isLoading && <div className="text-sm text-muted-foreground">Loading file content...</div>}
+        </CardContent>
+      </Card>
+    </StepLayout>
   );
 }

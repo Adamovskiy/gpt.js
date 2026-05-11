@@ -1,9 +1,10 @@
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useCallback, useState } from 'react';
 
 import type { Trainable } from '@/llm/types.ts';
 
-import { Button } from '@/components/ui/button.tsx';
+import { BackButton } from '@/components/layout/BackButton.tsx';
+import { NextButton } from '@/components/layout/NextButton.tsx';
+import { StepLayout } from '@/components/layout/StepLayout.tsx';
 import { Card } from '@/components/ui/card.tsx';
 import { Field, FieldLabel } from '@/components/ui/field.tsx';
 import { Input } from '@/components/ui/input.tsx';
@@ -177,13 +178,13 @@ export function OptimizerConfig({
   };
 
   return (
-    <Card className="p-6">
-      <div className="space-y-6">
-        <div>
-          <h3 className="text-lg font-semibold">Create Optimizer</h3>
-          <p className="text-sm text-muted-foreground">Choose the optimizer algorithm and configure its parameters</p>
-        </div>
-
+    <StepLayout
+      backButton={<BackButton onClick={onBack} />}
+      completeButton={<NextButton onClick={createOptimizer} title="Create optimizer" />}
+      subtitle="Choose the optimizer algorithm and configure its parameters"
+      title="5. Configure optimizer"
+    >
+      <Card className="p-6">
         <div className="space-y-4">
           <div className="space-y-3">
             <Field>
@@ -214,19 +215,7 @@ export function OptimizerConfig({
 
           {renderOptimizerParameters()}
         </div>
-
-        <div className="flex justify-between">
-          <Button onClick={onBack} variant="outline">
-            <ChevronLeft className="mr-1 size-4" />
-            Back
-          </Button>
-
-          <Button onClick={createOptimizer}>
-            Create Optimizer
-            <ChevronRight className="ml-1 size-4" />
-          </Button>
-        </div>
-      </div>
-    </Card>
+      </Card>
+    </StepLayout>
   );
 }

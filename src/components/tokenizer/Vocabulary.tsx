@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import type { Tokenizer } from '@/llm/types.ts';
 
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 const PAGE_SIZE = 36;
 
@@ -23,85 +24,89 @@ export function Vocabulary({ tokenizer }: { tokenizer: Tokenizer }) {
   const to = Math.min((currentPage + 1) * PAGE_SIZE, totalItems);
 
   return (
-    <div className="w-full rounded-xl border bg-card p-3">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <div>
-          <h3 className="text-sm font-medium">tokenizer.vocabulary</h3>
-          <p className="text-xs text-muted-foreground">
-            {from}–{to} of {totalItems} tokens
-          </p>
-        </div>
+    <Card>
+      <CardHeader>
+        <CardTitle>
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-medium">tokenizer.vocabulary</h3>
+              <p className="text-xs text-muted-foreground">
+                {from}–{to} of {totalItems} tokens
+              </p>
+            </div>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-2">
+                <Button
+                  disabled={currentPage === 0}
+                  onClick={() => {
+                    setPage((page) => Math.max(0, page - 1));
+                  }}
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                >
+                  Prev
+                </Button>
 
-        {totalPages > 1 && (
-          <div className="flex items-center gap-2">
-            <Button
-              disabled={currentPage === 0}
-              onClick={() => {
-                setPage((page) => Math.max(0, page - 1));
-              }}
-              size="sm"
-              type="button"
-              variant="outline"
-            >
-              Prev
-            </Button>
+                <span className="min-w-16 text-center text-xs text-muted-foreground">
+                  {currentPage + 1} / {totalPages}
+                </span>
 
-            <span className="min-w-16 text-center text-xs text-muted-foreground">
-              {currentPage + 1} / {totalPages}
-            </span>
-
-            <Button
-              disabled={currentPage >= totalPages - 1}
-              onClick={() => {
-                setPage((page) => Math.min(totalPages - 1, page + 1));
-              }}
-              size="sm"
-              type="button"
-              variant="outline"
-            >
-              Next
-            </Button>
+                <Button
+                  disabled={currentPage >= totalPages - 1}
+                  onClick={() => {
+                    setPage((page) => Math.min(totalPages - 1, page + 1));
+                  }}
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                >
+                  Next
+                </Button>
+              </div>
+            )}
           </div>
-        )}
-      </div>
-
-      <div
-        className="
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div
+          className="
           grid grid-cols-1 gap-2
           sm:grid-cols-2
           md:grid-cols-3
           lg:grid-cols-4
           xl:grid-cols-6
         "
-      >
-        {visibleVocabulary.map((token, localIdx) => {
-          const idx = currentPage * PAGE_SIZE + localIdx;
-          const value = JSON.stringify(token).slice(1, -1);
+        >
+          {visibleVocabulary.map((token, localIdx) => {
+            const idx = currentPage * PAGE_SIZE + localIdx;
+            const value = JSON.stringify(token).slice(1, -1);
 
-          return (
-            <div
-              className="
+            return (
+              <div
+                className="
                 grid grid-cols-[3rem_1fr] overflow-hidden rounded-md bg-gray-50
                 text-sm
               "
-              key={`${idx}-${value}`}
-            >
-              <div
-                className="
+                key={`${idx}-${value}`}
+              >
+                <div
+                  className="
                   border-r bg-muted px-2 py-1.5 font-mono text-xs
                   text-muted-foreground
                 "
-              >
-                {idx}
-              </div>
+                >
+                  {idx}
+                </div>
 
-              <div className="truncate px-2 py-1.5 font-mono" title={value}>
-                {value}
+                <div className="truncate px-2 py-1.5 font-mono" title={value}>
+                  {value}
+                </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
   );
 }

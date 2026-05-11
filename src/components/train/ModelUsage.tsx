@@ -1,12 +1,13 @@
-import { ChevronLeft } from 'lucide-react';
 import { type Dispatch, type SetStateAction } from 'react';
 
 import type { SelectedFile } from '@/components/input/InputConfig.tsx';
 import type { Optimizer } from '@/llm/optimizers/utils.ts';
 import type { LanguageModel, Tokenizer } from '@/llm/types.ts';
 
+import { BackButton } from '@/components/layout/BackButton.tsx';
+import { StepLayout } from '@/components/layout/StepLayout.tsx';
 import { ModelInference } from '@/components/train/ModelInference.tsx';
-import { Button } from '@/components/ui/button.tsx';
+import { Card, CardContent } from '@/components/ui/card.tsx';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs.tsx';
 
 import { ModelTraining } from './ModelTraining';
@@ -33,41 +34,38 @@ export function ModelUsage({
   tokenizer: Tokenizer;
 }) {
   return (
-    <div className="space-y-4">
-      <div className="mb-6">
-        <h2 className="text-xl font-bold">Train & Generate</h2>
-        <p className="text-sm text-muted-foreground">Train your model and generate text with it</p>
-      </div>
-      <div className="mb-4 flex justify-between">
-        <Button onClick={onBack} variant="outline">
-          <ChevronLeft className="mr-1 size-4" />
-          Back: Change Optimizer
-        </Button>
-      </div>
+    <StepLayout
+      backButton={<BackButton onClick={onBack} />}
+      subtitle="Train your model and generate text with it"
+      title="6. Use model"
+    >
+      <Card>
+        <CardContent>
+          <Tabs className="w-full" defaultValue="train">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="train">Training</TabsTrigger>
+              <TabsTrigger value="generate">Inference</TabsTrigger>
+            </TabsList>
 
-      <Tabs className="w-full" defaultValue="train">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="train">Training</TabsTrigger>
-          <TabsTrigger value="generate">Inference</TabsTrigger>
-        </TabsList>
+            <TabsContent className="space-y-6" value="train">
+              <ModelTraining
+                lossChartData={lossChartData}
+                model={model}
+                optimizer={optimizer}
+                selectedFile={selectedFile}
+                setLossChartData={setLossChartData}
+                setModel={setModel}
+                setOptimizer={setOptimizer}
+                tokenizer={tokenizer}
+              />
+            </TabsContent>
 
-        <TabsContent className="space-y-6" value="train">
-          <ModelTraining
-            lossChartData={lossChartData}
-            model={model}
-            optimizer={optimizer}
-            selectedFile={selectedFile}
-            setLossChartData={setLossChartData}
-            setModel={setModel}
-            setOptimizer={setOptimizer}
-            tokenizer={tokenizer}
-          />
-        </TabsContent>
-
-        <TabsContent className="space-y-6" value="generate">
-          <ModelInference model={model} tokenizer={tokenizer} />
-        </TabsContent>
-      </Tabs>
-    </div>
+            <TabsContent className="space-y-6" value="generate">
+              <ModelInference model={model} tokenizer={tokenizer} />
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
+    </StepLayout>
   );
 }

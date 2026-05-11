@@ -62,7 +62,7 @@ export function ModelInference({ tokenizer, model }: { model: LanguageModel; tok
       </div>
 
       {generateOutput && (
-        <div className="rounded-lg border p-4">
+        <div>
           <div className="mb-2 text-sm font-medium">Generated Output:</div>
           <code
             className="
